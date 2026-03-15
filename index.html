@@ -241,11 +241,13 @@ details summary{list-style:none;cursor:pointer}
   <div class="quiz-wrap">
     <div class="topbar">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <div class="pill"><span class="lbl">Score</span><span id="lv-sc">0.00</span></div>
-        <div class="pill"><span class="lbl">Correct</span><span id="lv-ok" style="color:#34d399">0</span></div>
-        <div class="pill"><span class="lbl">Wrong</span><span id="lv-bad" style="color:#f87171">0</span></div>
-        <div class="pill"><span class="lbl">Skip</span><span id="lv-sk" style="color:#fbbf24">0</span></div>
+        <div class="pill"><span class="lbl">Answered</span><span id="lv-ans" style="color:#60a5fa">0</span></div>
+        <div class="pill"><span class="lbl">Skipped</span><span id="lv-sk" style="color:#fbbf24">0</span></div>
+        <div class="pill"><span class="lbl">Remaining</span><span id="lv-rem" style="color:#94a3b8">0</span></div>
       </div>
+      <span id="lv-sc" style="display:none">0</span>
+      <span id="lv-ok" style="display:none">0</span>
+      <span id="lv-bad" style="display:none">0</span>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-danger" onclick="showModal()">Submit</button>
         <div class="timer-ring" id="t-ring"><span id="t-disp">60</span></div>
@@ -355,16 +357,76 @@ const TANKS = ['tank','reservoir','cistern','container','vessel','pool'];
 
 function rnd(arr){return arr[Math.floor(Math.random()*arr.length)]}
 function rndN(a,b){return Math.floor(Math.random()*(b-a+1))+a}
-// pick from array of numbers cleanly
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
-// two distinct names
 function twoNames(){let a=rnd(NAMES),b;do{b=rnd(NAMES)}while(b===a);return[a,b]}
 function threeNames(){let a=rnd(NAMES),b,c;do{b=rnd(NAMES)}while(b===a);do{c=rnd(NAMES)}while(c===a||c===b);return[a,b,c]}
 function fmt(n){return Number.isInteger(n)?n:parseFloat(n.toFixed(2))}
 
 // ═══════════════════════════════════════════════════════════════
-//  QUESTION TEMPLATES — Each chapter has 20+ templates
-//  Each template is a function() that returns {text,opts,correct,solution,type}
+//  BANKING EXAM PERCENTAGE TABLE
+//  [value, fraction_string, clean_base_multiplier]
+//  clean_base_multiplier: smallest number N such that N*value/100 is integer
+// ═══════════════════════════════════════════════════════════════
+const PCT_TABLE = [
+  [5,     '1/20', 20],[6.25,  '1/16', 16],[8,     '2/25', 25],
+  [9,     '9/100',100],[10,    '1/10', 10],[11.11, '1/9',   9],
+  [12,    '3/25', 25],[12.5,  '1/8',   8],[14.28, '1/7',   7],
+  [15,    '3/20', 20],[16,    '4/25', 25],[16.66, '1/6',   6],
+  [18.75, '3/16', 16],[20,    '1/5',   5],[22.22, '2/9',   9],
+  [24,    '6/25', 25],[25,    '1/4',   4],[28.57, '2/7',   7],
+  [30,    '3/10', 10],[31.25, '5/16', 16],[33.33, '1/3',   3],
+  [35,    '7/20', 20],[37.5,  '3/8',   8],[40,    '2/5',   5],
+  [42.85, '3/7',   7],[44.44, '4/9',   9],[45,    '9/20', 20],
+  [50,    '1/2',   2],[55.55, '5/9',   9],[56.25, '9/16', 16],
+  [60,    '3/5',   5],[62.5,  '5/8',   8],[66.66, '2/3',   3],
+  [68.75, '11/16',16],[70,    '7/10', 10],[71.42, '5/7',   7],
+  [75,    '3/4',   4],[77.77, '7/9',   9],[80,    '4/5',   5],
+  [81.25, '13/16',16],[83.33, '5/6',   6],[85,    '17/20',20],
+  [87.5,  '7/8',   8],[88.88, '8/9',   9],[90,    '9/10', 10],
+  [93.75, '15/16',16],[100,   '1/1',   1],[125,   '5/4',   4],
+  [150,   '3/2',   2],[175,   '7/4',   4],[200,   '2/1',   1],
+];
+
+// Subsets for different contexts
+const PCT_SMALL  = PCT_TABLE.filter(p=>p[0]>=5  && p[0]<=25);   // 5–25%
+const PCT_MID    = PCT_TABLE.filter(p=>p[0]>=8  && p[0]<=50);   // 8–50%
+const PCT_COMMON = PCT_TABLE.filter(p=>p[0]>=5  && p[0]<=50);   // 5–50%
+const PCT_LARGE  = PCT_TABLE.filter(p=>p[0]>=25 && p[0]<=100);  // 25–100%
+const PCT_OVER   = PCT_TABLE.filter(p=>p[0]>=100);              // 100–200%
+
+// Pick a random pct entry from a subset
+function pickPct(subset){ return rnd(subset||PCT_COMMON); }
+// Get numeric value of pct entry
+function pv(pe){ return pe[0]; }
+// Get fraction label e.g. "1/4"
+function pf(pe){ return pe[1]; }
+// Get clean multiplier
+function pm(pe){ return pe[2]; }
+
+// Generate a clean base number where base * pct / 100 is always an integer
+// Works by finding a number divisible by the multiplier in a given range
+function cleanBase(pe, min, max){
+  const mult = pm(pe);
+  const lo = Math.ceil((min||100)/mult)*mult;
+  const hi = Math.floor((max||5000)/mult)*mult;
+  if(lo>hi) return mult*Math.ceil((min||100)/mult);
+  const steps = Math.floor((hi-lo)/mult)+1;
+  return lo + rndN(0,steps-1)*mult;
+}
+
+// Apply pct to base — guaranteed integer result when base from cleanBase()
+function applyPct(base, pe){ return Math.round(base * pe[0] / 100 * 10000)/10000; }
+
+// Two pct entries where p1 < p2
+function twoPcts(subset){
+  const arr=subset||PCT_COMMON;
+  let a=rnd(arr),b;do{b=rnd(arr)}while(b===a);
+  return a[0]<b[0]?[a,b]:[b,a];
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  QUESTION TEMPLATES  — All percentages use PCT_TABLE values
+//  Each template is a pure function → {text,opts,correct,solution,type}
 // ═══════════════════════════════════════════════════════════════
 
 const CHAPTERS = {
@@ -372,286 +434,302 @@ const CHAPTERS = {
 // ─────────────────── PERCENTAGE ───────────────────
 "Percentage":{icon:"📊",color:"#3b82f6",templates:[
   ()=>{
-    const[A,B]=twoNames();const p=pick([15,20,25,30,35,40]);const x=pick([200,300,400,500,600,800,1000,1200]);
-    const ans=x*p/100;const w1=fmt(ans*1.1),w2=fmt(ans*0.9),w3=fmt(ans+p);
-    return{text:`What is <strong>${p}%</strong> of <strong>${x}</strong>?`,
-    opts:shuffle([fmt(ans),w1,w2,w3]),correct:fmt(ans),
-    solution:`${p}% of ${x} = (${p}/100) × ${x} = <strong>${fmt(ans)}</strong>`,type:'MCQ'}
+    // What is X% of N?
+    const pe=pickPct(PCT_COMMON);const base=cleanBase(pe,200,5000);
+    const ans=applyPct(base,pe);
+    const w1=fmt(ans*(1+pe[0]/200)),w2=fmt(ans*0.9),w3=fmt(ans+pe[0]);
+    return{text:`What is <strong>${pv(pe)}% (${pf(pe)})</strong> of <strong>${base}</strong>?`,
+    opts:shuffle([fmt(ans),fmt(w1),fmt(w2),fmt(w3)]),correct:fmt(ans),
+    solution:`${pv(pe)}% of ${base} = ${pf(pe)} × ${base} = <strong>${fmt(ans)}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A]=twoNames();const tot=pick([500,600,800,1000,1200,1500]);const sc=rndN(Math.floor(tot*0.4),Math.floor(tot*0.85));
-    const pct=fmt(sc/tot*100);const w1=fmt(pct+5),w2=fmt(pct-5),w3=fmt(pct+2.5);
-    return{text:`<strong>${A}</strong> scored <strong>${sc}</strong> marks out of <strong>${tot}</strong>. What percentage did ${A} score?`,
-    opts:shuffle([pct,w1,w2,w3]),correct:pct,
-    solution:`Percentage = (${sc}/${tot}) × 100 = <strong>${pct}%</strong>`,type:'MCQ'}
+    // Scored X out of Y — what %?
+    const[A]=twoNames();const pe=pickPct(PCT_COMMON);const tot=cleanBase(pe,200,2000);
+    const sc=applyPct(tot,pe);
+    const w1=fmt(pv(pe)+5),w2=fmt(pv(pe)-5),w3=fmt(pv(pe)+10);
+    return{text:`<strong>${A}</strong> scored <strong>${fmt(sc)}</strong> marks out of <strong>${tot}</strong>. What percentage did ${A} score?`,
+    opts:shuffle([`${pv(pe)}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${pv(pe)}%`,
+    solution:`Percentage = (${fmt(sc)}/${tot}) × 100 = ${pf(pe)} × 100 = <strong>${pv(pe)}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([10,15,20,25,30,40]);const x=pick([200,400,500,600,800,1000]);
-    const ans=fmt(x*(1+p/100));const w1=fmt(ans+p),w2=fmt(x+p),w3=fmt(ans-p/10);
-    return{text:`A number is increased by <strong>${p}%</strong>. If original number is <strong>${x}</strong>, find the new number.`,
+    // Increase by p%
+    const pe=pickPct(PCT_SMALL);const base=cleanBase(pe,100,2000);
+    const inc=applyPct(base,pe);const ans=fmt(base+inc);
+    const w1=fmt(base+pv(pe)),w2=fmt(base-inc),w3=fmt(ans+fmt(inc*0.1));
+    return{text:`A number <strong>${base}</strong> is increased by <strong>${pv(pe)}%</strong>. Find the new number.`,
+    opts:shuffle([ans,fmt(w1),fmt(w2),fmt(w3)]),correct:ans,
+    solution:`Increase = ${pv(pe)}% of ${base} = ${pf(pe)} × ${base} = ${fmt(inc)}. New = ${base} + ${fmt(inc)} = <strong>${ans}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    // Decrease by p%
+    const pe=pickPct(PCT_SMALL);const base=cleanBase(pe,200,3000);
+    const dec=applyPct(base,pe);const ans=fmt(base-dec);
+    const w1=fmt(base-pv(pe)),w2=fmt(base+dec),w3=fmt(ans-pv(pe));
+    return{text:`A number <strong>${base}</strong> is decreased by <strong>${pv(pe)}%</strong>. Find the new value.`,
+    opts:shuffle([ans,fmt(w1),fmt(w2),fmt(w3)]),correct:ans,
+    solution:`Decrease = ${pv(pe)}% of ${base} = ${pf(pe)} × ${base} = ${fmt(dec)}. New = ${base} - ${fmt(dec)} = <strong>${ans}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    // Salary hike
+    const[A]=twoNames();const pe=pickPct(PCT_SMALL);
+    const base=cleanBase(pe,5000,80000);const inc=applyPct(base,pe);const ans=fmt(base+inc);
+    const w1=ans+1000,w2=ans-500,w3=base+pv(pe)*100;
+    return{text:`<strong>${A}'s</strong> salary is Rs. <strong>${base.toLocaleString()}</strong>. After a <strong>${pv(pe)}% (${pf(pe)})</strong> hike, new salary is?`,
     opts:shuffle([ans,w1,w2,w3]),correct:ans,
-    solution:`New number = ${x} × (1 + ${p}/100) = ${x} × ${fmt(1+p/100)} = <strong>${ans}</strong>`,type:'MCQ'}
+    solution:`Hike = ${pf(pe)} × ${base} = Rs. ${fmt(inc)}. New = ${base} + ${fmt(inc)} = <strong>Rs. ${ans.toLocaleString()}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([10,15,20,25,30]);const x=pick([200,400,500,600,800,1000,1200]);
-    const ans=fmt(x*(1-p/100));const w1=fmt(ans+p),w2=fmt(x-p),w3=fmt(ans+10);
-    return{text:`A number is decreased by <strong>${p}%</strong>. If original is <strong>${x}</strong>, find the new value.`,
-    opts:shuffle([ans,w1,w2,w3]),correct:ans,
-    solution:`New = ${x} × (1 − ${p}/100) = ${x} × ${fmt(1-p/100)} = <strong>${ans}</strong>`,type:'MCQ'}
+    // Net % change: increase p1 then decrease p2
+    const pe1=pickPct(PCT_SMALL);const pe2=pickPct(PCT_SMALL);
+    const net=fmt(pv(pe1)+pv(pe2)-pv(pe1)*pv(pe2)/100);
+    const sign=net>=0?'+':'';
+    const w1=fmt(pv(pe1)+pv(pe2)),w2=fmt(Math.abs(net)+2),w3=fmt(Math.abs(net)-2);
+    return{text:`A value is first increased by <strong>${pv(pe1)}%</strong> then decreased by <strong>${pv(pe2)}%</strong>. Net % change?`,
+    opts:shuffle([`${sign}${net}%`,`+${pv(pe1)+pv(pe2)}%`,`+${w2}%`,`${net<0?'-':''}${w3}%`]),correct:`${sign}${net}%`,
+    solution:`Net = ${pv(pe1)} + (−${pv(pe2)}) − (${pv(pe1)}×${pv(pe2)}/100) = ${pv(pe1)}−${pv(pe2)}−${fmt(pv(pe1)*pv(pe2)/100)} = <strong>${sign}${net}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A]=twoNames();const old=pick([40000,50000,60000,80000,100000]);const p=pick([10,15,20,25]);
-    const inc=fmt(old*p/100);const ans=old+inc;const w1=ans+1000,w2=ans-1000,w3=ans+500;
-    return{text:`<strong>${A}'s</strong> salary is Rs. <strong>${old.toLocaleString()}</strong>. He gets a <strong>${p}%</strong> hike. What is his new salary?`,
-    opts:shuffle([ans,w1,w2,w3]),correct:ans,
-    solution:`Increment = ${old}×${p}/100 = ${inc}. New salary = ${old}+${inc} = <strong>Rs. ${ans.toLocaleString()}</strong>`,type:'MCQ'}
+    // Find original from increased value
+    const pe=pickPct(PCT_SMALL);const base=cleanBase(pe,200,3000);
+    const after=fmt(base*(1+pv(pe)/100));
+    const w1=fmt(base+pv(pe)),w2=fmt(base*pv(pe)/100),w3=fmt(base+10);
+    return{text:`After a <strong>${pv(pe)}%</strong> increase, a number becomes <strong>${fmt(after)}</strong>. Original number?`,
+    opts:shuffle([base,fmt(w1),fmt(w2),fmt(w3)]),correct:base,
+    solution:`Original = ${fmt(after)} × 100/(100+${pv(pe)}) = ${fmt(after)} × ${fmt(100/(100+pv(pe)))} = <strong>${base}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p1=pick([10,15,20,25]);const p2=pick([10,15,20,25]);
-    const net=fmt(p1+p2-p1*p2/100);const w1=fmt(p1+p2),w2=fmt(net+5),w3=fmt(net-5);
-    return{text:`A number is first increased by <strong>${p1}%</strong> then decreased by <strong>${p2}%</strong>. What is the net percentage change?`,
-    opts:shuffle([`${net>0?'+':''}${net}%`,`+${w1}%`,`+${w2}%`,`${w3>0?'+':''}${w3}%`]),correct:`${net>0?'+':''}${net}%`,
-    solution:`Net change = ${p1}+${p2}−(${p1}×${p2}/100) = ${p1}+${p2}−${fmt(p1*p2/100)} = <strong>${net>0?'+':''}${net}%</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const p=pick([20,25,30,40,50]);const x=rndN(100,500)*pick([2,4,5,10]);
-    const ans=fmt(x*100/(100+p));const w1=fmt(ans+10),w2=fmt(ans-10),w3=fmt(x*100/(100-p));
-    return{text:`<strong>${A}</strong> spends <strong>${p}%</strong> of his income on food. If food expenditure is Rs. <strong>${x}</strong>, find his total income.`,
-    opts:shuffle([ans,w1,w2,w3]),correct:ans,
-    solution:`Income = ${x} × 100/${100+p}... Actually: if ${p}% of income = ${x}, income = (${x}×100)/${p} = <strong>Rs. ${fmt(x*100/p)}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const voters=pick([80000,100000,120000,150000,200000]);const turnout=pick([60,65,70,75,80]);
-    const win=pick([52,55,58,60,62]);
-    const cast=voters*turnout/100;const wv=fmt(cast*win/100);const lv=fmt(cast*(100-win)/100);
-    const margin=fmt(wv-lv);const w1=margin+1000,w2=margin-1000,w3=margin+500;
-    return{text:`In an election, <strong>${voters.toLocaleString()}</strong> voters are registered. <strong>${turnout}%</strong> voted. The winner got <strong>${win}%</strong> of votes cast. By how many votes did the winner win?`,
+    // Election — turnout & winning %
+    const voters=pick([80000,100000,120000,150000,200000,240000,250000]);
+    const peTurn=pickPct(PCT_LARGE);const WIN_PCTS=PCT_TABLE.filter(p=>p[0]>50&&p[0]<75);const peWin=pickPct(WIN_PCTS.length?WIN_PCTS:PCT_TABLE.filter(p=>p[0]>=55&&p[0]<=70));
+    const cast=Math.round(voters*pv(peTurn)/100);
+    const wv=Math.round(cast*pv(peWin)/100);const lv=cast-wv;
+    const margin=wv-lv;
+    const w1=margin+1000,w2=margin-1000,w3=margin+500;
+    return{text:`<strong>${voters.toLocaleString()}</strong> registered voters. <strong>${pv(peTurn)}%</strong> voted. Winner got <strong>${pv(peWin)}%</strong> of votes cast. Winning margin?`,
     opts:shuffle([margin,w1,w2,w3]),correct:margin,
-    solution:`Votes cast = ${voters}×${turnout}/100 = ${cast}. Winner = ${wv}, Loser = ${lv}. Margin = <strong>${margin}</strong>`,type:'MCQ'}
+    solution:`Votes cast=${cast}. Winner=${wv}, Loser=${lv}. Margin=<strong>${margin}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const a=pick([30,40,50,60,70,80]);const b=pick([20,25,30,35,40,50]);
-    const max=pick([200,300,400,500]);
-    const sa=fmt(max*a/100);const sb=fmt(max*b/100);const diff=fmt(sa-sb);
-    const w1=diff+10,w2=diff-10,w3=fmt((a-b)*max/100+5);
-    return{text:`<strong>${A}</strong> scored <strong>${a}%</strong> and <strong>${B}</strong> scored <strong>${b}%</strong> in an exam of <strong>${max}</strong> marks. By how many marks did ${A} score more?`,
-    opts:shuffle([diff,w1,w2,w3]),correct:diff,
-    solution:`${A} = ${sa}, ${B} = ${sb}. Difference = <strong>${diff}</strong>`,type:'MCQ'}
+    // p% of income on food — find income
+    const[A]=twoNames();const pe=pickPct(PCT_SMALL);
+    const exp=cleanBase(pe,500,20000);const income=fmt(exp*100/pv(pe));
+    const w1=fmt(income+500),w2=fmt(income-500),w3=fmt(income*pv(pe)/100+income);
+    return{text:`<strong>${A}</strong> spends <strong>${pv(pe)}% (${pf(pe)})</strong> of income on food costing Rs. <strong>${exp.toLocaleString()}</strong>. Total income?`,
+    opts:shuffle([income,w1,w2,w3]),correct:income,
+    solution:`Income = Expenditure ÷ rate = ${exp} ÷ ${pf(pe)} = ${exp} × ${fmt(100/pv(pe))} = <strong>Rs. ${income.toLocaleString()}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([10,20,25,30,40,50]);const after=pick([540,630,720,840,900,1080]);
-    const orig=fmt(after*100/(100+p));const w1=fmt(orig+10),w2=fmt(orig-10),w3=fmt(after*100/(100-p));
-    return{text:`After a <strong>${p}%</strong> increase, a number becomes <strong>${after}</strong>. What was the original number?`,
-    opts:shuffle([orig,w1,w2,w3]),correct:orig,
-    solution:`Original = ${after} × 100/(100+${p}) = ${after}×100/${100+p} = <strong>${orig}</strong>`,type:'MCQ'}
+    // Price rise → % reduction in consumption to keep budget same
+    const pe=pickPct(PCT_SMALL);
+    const reduction=fmt(pv(pe)*100/(100+pv(pe)));
+    const w1=fmt(pv(pe)),w2=fmt(reduction+2),w3=fmt(reduction-2);
+    return{text:`Price of an item rises by <strong>${pv(pe)}% (${pf(pe)})</strong>. By what % must a person reduce consumption to keep expenditure same?`,
+    opts:shuffle([`${reduction}%`,`${pv(pe)}%`,`${w2}%`,`${w3}%`]),correct:`${reduction}%`,
+    solution:`Reduction = (rise%)/(100+rise%) × 100 = ${pv(pe)}/${100+pv(pe)} × 100 = <strong>${reduction}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const p=pick([10,15,20,25,30]);
-    const aval=pick([200,300,400,500,600]);const bval=fmt(aval*(100+p)/100);
-    const w1=fmt(bval+10),w2=fmt(bval-10),w3=fmt(aval*(100-p)/100);
-    return{text:`<strong>${B}'s</strong> income is <strong>${p}%</strong> more than <strong>${A}'s</strong>. If ${A}'s income is Rs. <strong>${aval}</strong>, find ${B}'s income.`,
-    opts:shuffle([bval,w1,w2,w3]),correct:bval,
-    solution:`${B} = ${aval} × (1+${p}/100) = ${aval} × ${fmt((100+p)/100)} = <strong>Rs. ${bval}</strong>`,type:'MCQ'}
+    // B is p% more than A — by what % is A less than B?
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const base=cleanBase(pe,200,2000);const bVal=fmt(base*(1+pv(pe)/100));
+    const less=fmt(pv(pe)*100/(100+pv(pe)));
+    const w1=pv(pe),w2=fmt(less+2),w3=fmt(less-2);
+    return{text:`<strong>${B}'s</strong> income is <strong>${pv(pe)}%</strong> more than <strong>${A}'s</strong>. By what % is ${A}'s income less than ${B}'s?`,
+    opts:shuffle([`${less}%`,`${pv(pe)}%`,`${w2}%`,`${w3}%`]),correct:`${less}%`,
+    solution:`${A}'s < ${B}'s by: (${pv(pe)}/(100+${pv(pe)})) × 100 = <strong>${less}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const p=pick([10,15,20,25]);
-    const bval=pick([400,500,600,800,1000]);const aval=fmt(bval*100/(100+p));
-    const w1=fmt(aval+10),w2=fmt(aval-10),w3=fmt(bval*(100-p)/100);
-    return{text:`<strong>${A}'s</strong> income is <strong>${p}%</strong> less than <strong>${B}'s</strong>. If ${B}'s income is Rs. <strong>${bval}</strong>, by what % is ${B}'s income more than ${A}'s?`,
-    opts:shuffle([`${fmt(p*100/(100-p))}%`,`${p}%`,`${fmt(p+5)}%`,`${fmt(p-2)}%`]),
-    correct:`${fmt(p*100/(100-p))}%`,
-    solution:`${A} = ${aval}. ${B} is more than ${A} by = ${bval-aval}. % = (${bval-aval}/${aval})×100 = <strong>${fmt(p*100/(100-p))}%</strong>`,type:'MCQ'}
+    // Population growth — compound %
+    const city=rnd(CITIES);const pe=pickPct(PCT_SMALL.filter(p=>p[0]<=20));
+    const base=cleanBase(pe,50000,500000);const yrs=pick([2,3]);
+    const ans=fmt(base*Math.pow(1+pv(pe)/100,yrs));
+    const w1=fmt(base*(1+pv(pe)*yrs/100)),w2=fmt(ans+1000),w3=fmt(ans-1000);
+    return{text:`Population of <strong>${city}</strong> = <strong>${base.toLocaleString()}</strong>, growing at <strong>${pv(pe)}%</strong> p.a. Population after <strong>${yrs} year${yrs>1?'s':''}</strong>?`,
+    opts:shuffle([fmt(ans),fmt(w1),fmt(w2),fmt(w3)]),correct:fmt(ans),
+    solution:`Pop = ${base}×(1+${pf(pe)})^${yrs} = ${base}×${fmt(Math.pow(1+pv(pe)/100,yrs))} = <strong>${fmt(ans)}</strong>`,type:'MCQ'}
   },
-  // Data Sufficiency
   ()=>{
-    const[A]=twoNames();const p=pick([10,15,20,25,30]);const x=pick([200,300,400,500,600]);
-    const ans=fmt(x*p/100);
-    return{text:`<strong>Data Sufficiency:</strong> Find ${p}% of a number.<br><strong>Statement I:</strong> The number is <strong>${x}</strong>.<br><strong>Statement II:</strong> ${p}% of the number equals Rs. ${ans}.`,
-    opts:['Only Statement I','Only Statement II','Either I or II','Both needed'],
-    correct:'Either I or II',
-    solution:`From I: ${p}% of ${x} = <strong>${ans}</strong>. From II: directly gives the answer as ${ans}. <strong>Either statement alone is sufficient.</strong>`,type:'Data Sufficiency'}
+    // Fail by X marks — find total
+    const pePass=pickPct(PCT_COMMON.filter(p=>p[0]>=30&&p[0]<=50));
+    const peFail=pickPct(PCT_COMMON.filter(p=>p[0]>=20&&p[0]<pv(pePass)));
+    const tot=cleanBase(pePass,100,1000);
+    const failMarks=applyPct(tot,peFail);const passMarks=applyPct(tot,pePass);
+    const diff=Math.round(passMarks-failMarks);
+    const w1=tot+50,w2=tot-50,w3=tot+100;
+    return{text:`A student gets <strong>${pv(peFail)}%</strong> and fails by <strong>${diff}</strong> marks. Passing % is <strong>${pv(pePass)}%</strong>. Find total marks.`,
+    opts:shuffle([tot,w1,w2,w3]),correct:tot,
+    solution:`Fail marks=${fmt(failMarks)}, Pass marks=${fmt(passMarks)}. Difference = (${pv(pePass)}−${pv(peFail)})% of Total = ${diff}. Total = ${diff}×100/${pv(pePass)-pv(peFail)} = <strong>${tot}</strong>`,type:'MCQ'}
   },
-  // Qty Comparison
   ()=>{
-    const p1=pick([15,20,25,30]);const p2=pick([15,20,25,30]);const x=pick([400,500,600,800]);
-    const q1=fmt(x*p1/100);const q2=fmt(x*p2/100);
+    // Data Sufficiency
+    const pe=pickPct(PCT_COMMON);const base=cleanBase(pe,200,2000);const ans=applyPct(base,pe);
+    return{text:`<strong>Data Sufficiency:</strong> Find ${pv(pe)}% of a number.<br><strong>Statement I:</strong> The number is <strong>${base}</strong>.<br><strong>Statement II:</strong> ${pv(pe)}% of the number equals <strong>${fmt(ans)}</strong>.`,
+    opts:['Only Statement I','Only Statement II','Either I or II','Both needed'],correct:'Either I or II',
+    solution:`From I: ${pf(pe)}×${base}=<strong>${fmt(ans)}</strong>. From II: directly given. <strong>Either statement alone is sufficient.</strong>`,type:'Data Sufficiency'}
+  },
+  ()=>{
+    // Qty Comparison
+    const[pe1,pe2]=twoPcts(PCT_COMMON);const base=cleanBase(pe1,400,4000);
+    const q1=applyPct(base,pe1);const q2=applyPct(base,pe2);
     const rel=q1>q2?'Q1 > Q2':q1<q2?'Q1 < Q2':'Q1 = Q2';
-    return{text:`<strong>Quantity Comparison:</strong><br>Q1: <strong>${p1}%</strong> of <strong>${x}</strong><br>Q2: <strong>${p2}%</strong> of <strong>${x}</strong>`,
+    return{text:`<strong>Quantity Comparison:</strong><br>Q1: <strong>${pv(pe1)}%</strong> of <strong>${base}</strong><br>Q2: <strong>${pv(pe2)}%</strong> of <strong>${base}</strong>`,
     opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
-    solution:`Q1 = ${q1}, Q2 = ${q2}. <strong>${rel}</strong>`,type:'Qty Comparison'}
+    solution:`Q1 = ${pf(pe1)}×${base} = ${fmt(q1)}. Q2 = ${pf(pe2)}×${base} = ${fmt(q2)}. <strong>${rel}</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const[A,B]=twoNames();const tot=pick([800,1000,1200]);
-    const pa=pick([50,55,60,65,70]);const pb=pick([40,45,50,55,60]);
-    const sa=fmt(tot*pa/100);const sb=fmt(tot*pb/100);
-    const rel=sa>sb?'Q1 > Q2':sa<sb?'Q1 < Q2':'Q1 = Q2';
-    return{text:`<strong>Quantity Comparison:</strong><br>Q1: Marks of <strong>${A}</strong> who scored <strong>${pa}%</strong> in exam of ${tot}<br>Q2: Marks of <strong>${B}</strong> who scored <strong>${pb}%</strong> in same exam`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
-    solution:`Q1 = ${sa}, Q2 = ${sb}. <strong>${rel}</strong>`,type:'Qty Comparison'}
+    // Qty Comparison — symmetric increase/decrease
+    const pe=pickPct(PCT_SMALL);const base=cleanBase(pe,200,2000);
+    const inc=fmt(base*(1+pv(pe)/100));const dec=fmt(base*(1-pv(pe)/100));
+    const sum=fmt(parseFloat(inc)+parseFloat(dec));
+    return{text:`<strong>Quantity Comparison:</strong><br>Q1: (${base} increased by ${pv(pe)}%) + (${base} decreased by ${pv(pe)}%)<br>Q2: 2 × ${base} = <strong>${2*base}</strong>`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 < Q2',
+    solution:`Q1=${inc}+${dec}=${sum}. Q2=${2*base}. Since (1+r)(1-r)=1-r²<1, sum < 2×base. <strong>Q1 < Q2</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const p=pick([10,20,25,30,40,50]);const x=pick([300,400,500,600,800]);
-    const inc=fmt(x*(100+p)/100);const dec=fmt(x*(100-p)/100);
-    const sum=fmt(inc+dec);const rel=sum>2*x?'Q1 > Q2':sum<2*x?'Q1 < Q2':'Q1 = Q2';
-    return{text:`<strong>Quantity Comparison:</strong><br>Q1: Sum of (${x} increased by ${p}%) and (${x} decreased by ${p}%)<br>Q2: <strong>2 × ${x} = ${2*x}</strong>`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 = Q2',
-    solution:`Q1 = ${inc}+${dec} = ${sum}. Q2 = ${2*x}. <strong>Q1 = Q2</strong> (always equal by symmetry)`,type:'Qty Comparison'}
+    // Two students — difference in marks
+    const[A,B]=twoNames();const[pe1,pe2]=twoPcts(PCT_COMMON);const tot=cleanBase(pe1,200,1000);
+    const sa=applyPct(tot,pe1);const sb=applyPct(tot,pe2);const diff=fmt(Math.abs(sa-sb));
+    const w1=diff+5,w2=diff-5,w3=fmt(diff*2);
+    return{text:`<strong>${A}</strong> scores <strong>${pv(pe1)}%</strong> and <strong>${B}</strong> scores <strong>${pv(pe2)}%</strong> in exam of <strong>${tot}</strong> marks. Difference?`,
+    opts:shuffle([diff,fmt(w1),fmt(w2),fmt(w3)]),correct:diff,
+    solution:`${A}=${pf(pe1)}×${tot}=${fmt(sa)}. ${B}=${pf(pe2)}×${tot}=${fmt(sb)}. Diff=<strong>${diff}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const city=rnd(CITIES);const old=pick([50000,60000,80000,100000,120000]);
-    const p=pick([5,8,10,12,15]);const yrs=pick([2,3,4,5]);
-    const newpop=fmt(old*Math.pow(1+p/100,yrs));
-    const w1=fmt(old*(1+p*yrs/100)),w2=fmt(newpop+old*p*yrs/10000),w3=fmt(newpop*1.05);
-    return{text:`Population of <strong>${city}</strong> is <strong>${old.toLocaleString()}</strong>. If it grows at <strong>${p}%</strong> per annum, what will be population after <strong>${yrs} years</strong>?`,
-    opts:shuffle([fmt(newpop),fmt(w1),fmt(w2),fmt(w3)]),correct:fmt(newpop),
-    solution:`Population = ${old} × (1+${p}/100)^${yrs} = ${old} × ${fmt(Math.pow(1+p/100,yrs))} ≈ <strong>${fmt(newpop)}</strong>`,type:'MCQ'}
+    // p% more income — qty comparison
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const aInc=cleanBase(pe,2000,20000);const bInc=fmt(aInc*(1+pv(pe)/100));
+    return{text:`<strong>Quantity Comparison:</strong><br><strong>${B}'s</strong> income is <strong>${pv(pe)}% (${pf(pe)})</strong> more than <strong>${A}'s</strong>. ${A}'s income = Rs. ${aInc.toLocaleString()}.<br>Q1: ${B}'s income &nbsp; Q2: Rs. ${fmt(aInc+aInc*pv(pe)/200)}`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 > Q2',
+    solution:`${B}=${aInc}×(1+${pf(pe)})=<strong>Rs. ${fmt(bInc)}</strong> > Q2. <strong>Q1 > Q2</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const item=rnd(ITEMS);const price=pick([100,120,150,160,200,240,250]);
-    const p=pick([5,10,15,20,25]);const newp=fmt(price*(1+p/100));
-    const qty_old=pick([10,12,15,20]);const budget=price*qty_old;
-    const qty_new=Math.floor(budget/newp);const red=fmt((qty_old-qty_new)/qty_old*100);
-    const w1=fmt(red+5),w2=fmt(red-5),w3=fmt(red+2.5);
-    return{text:`Price of <strong>${item}</strong> rises by <strong>${p}%</strong>. A person has a fixed budget. By what % should he reduce his consumption to maintain the same expenditure?`,
-    opts:shuffle([`${fmt(p*100/(100+p))}%`,`${p}%`,`${w1}%`,`${w2}%`]),
-    correct:`${fmt(p*100/(100+p))}%`,
-    solution:`Reduction % = (${p}/(100+${p}))×100 = <strong>${fmt(p*100/(100+p))}%</strong>`,type:'MCQ'}
+    // Data Sufficiency — who scored more
+    const[A,B]=twoNames();const[pe1,pe2]=twoPcts(PCT_COMMON);const tot=cleanBase(pe1,200,1000);
+    return{text:`<strong>Data Sufficiency:</strong> Who scored more in the exam?<br><strong>I:</strong> ${A} scored <strong>${pv(pe1)}%</strong> of ${tot}.<br><strong>II:</strong> ${B} scored <strong>${pv(pe2)}%</strong> of ${tot}.`,
+    opts:['Only Statement I','Only Statement II','Either I or II','Both needed'],correct:'Both needed',
+    solution:`${A}=${pf(pe1)}×${tot}=${fmt(applyPct(tot,pe1))}. ${B}=${pf(pe2)}×${tot}=${fmt(applyPct(tot,pe2))}. Need both to compare. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const pa=pick([15,20,25,30]);const pb=pick([10,15,20,25]);
-    const x=pick([400,500,600,800]);
-    const q1=fmt(x*pa/100);const q2=fmt(x*pb/100);
-    const ds_ans=q1>q2?'Statement I':'Statement II';
-    return{text:`<strong>Data Sufficiency:</strong> Who scored more marks?<br><strong>Statement I:</strong> ${A} scored ${pa}% of ${x}.<br><strong>Statement II:</strong> ${B} scored ${pb}% of ${x}.`,
-    opts:['Only Statement I','Only Statement II','Either I or II','Both I and II needed'],
-    correct:'Both I and II needed',
-    solution:`Both statements together: ${A} scored ${q1}, ${B} scored ${q2}. Need both to compare. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+    // Shopkeeper: marks up then discounts
+    const peMark=pickPct(PCT_SMALL.concat(PCT_MID.filter(p=>p[0]<=50)));
+    const peDisc=pickPct(PCT_SMALL);
+    const cp=cleanBase(peMark,100,2000);
+    const mp=fmt(cp*(1+pv(peMark)/100));const sp=fmt(parseFloat(mp)*(1-pv(peDisc)/100));
+    const net=fmt((parseFloat(sp)-cp)/cp*100);
+    const w1=fmt(Math.abs(parseFloat(net))+3),w2=fmt(Math.abs(parseFloat(net))-2),w3=fmt(pv(peMark)-pv(peDisc));
+    return{text:`Marks price <strong>${pv(peMark)}%</strong> above CP, gives <strong>${pv(peDisc)}%</strong> discount. CP = Rs. ${cp}. Profit/Loss %?`,
+    opts:shuffle([`${parseFloat(net)>=0?net+'% Profit':Math.abs(parseFloat(net))+'% Loss'}`,`${w1}% Profit`,`${pv(peMark)-pv(peDisc)}% Profit`,`${w2}% Loss`]),
+    correct:`${parseFloat(net)>=0?net+'% Profit':Math.abs(parseFloat(net))+'% Loss'}`,
+    solution:`MP=${fmt(mp)}, SP=${fmt(sp)}, CP=${cp}. Net=(${fmt(sp)}-${cp})/${cp}×100=<strong>${net}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const pass=pick([40,45,50]);const sc=rndN(30,pass-2);const more=rndN(5,15);
-    const tot=fmt((more*100)/(pass-sc));const w1=fmt(tot+10),w2=fmt(tot-10),w3=fmt(tot+5);
-    return{text:`A student scored <strong>${sc}%</strong> and failed by <strong>${more}</strong> marks. If passing percentage is <strong>${pass}%</strong>, find total marks.`,
-    opts:shuffle([fmt(tot),fmt(w1),fmt(w2),fmt(w3)]),correct:fmt(tot),
-    solution:`Passing marks = ${pass}% of Total. Student got ${sc}% of Total. Difference = ${pass-sc}% = ${more} marks. Total = (${more}×100)/${pass-sc} = <strong>${fmt(tot)}</strong>`,type:'MCQ'}
+    // Consecutive % changes on same base
+    const pe1=pickPct(PCT_SMALL);const pe2=pickPct(PCT_SMALL);const pe3=pickPct(PCT_SMALL);
+    const base=cleanBase(pe1,1000,5000);
+    const after1=fmt(base*(1+pv(pe1)/100));
+    const after2=fmt(parseFloat(after1)*(1+pv(pe2)/100));
+    const after3=fmt(parseFloat(after2)*(1-pv(pe3)/100));
+    const w1=fmt(parseFloat(after3)+50),w2=fmt(parseFloat(after3)-50),w3=fmt(base*(1+(pv(pe1)+pv(pe2)-pv(pe3))/100));
+    return{text:`Rs. <strong>${base}</strong> increased by <strong>${pv(pe1)}%</strong>, then by <strong>${pv(pe2)}%</strong>, then decreased by <strong>${pv(pe3)}%</strong>. Final value?`,
+    opts:shuffle([after3,fmt(w1),fmt(w2),fmt(w3)]),correct:after3,
+    solution:`After +${pv(pe1)}%: ${after1}. After +${pv(pe2)}%: ${after2}. After -${pv(pe3)}%: <strong>${after3}</strong>`,type:'MCQ'}
   },
 ]},
 
 // ─────────────────── RATIO & PROPORTION ───────────────────
 "Ratio & Proportion":{icon:"⚖️",color:"#8b5cf6",templates:[
   ()=>{
-    const a=pick([2,3,4,5,6]);const b=pick([3,4,5,6,7,8]);const c=pick([4,5,6,7,8,9,10]);
-    const total=pick([100,120,150,180,200,240,360])*a*b*c/(a*b*c);
-    const lcm=a*b;const ra=a*c,rb=b*c;
-    // A:B=a:b, B:C=b:c => A:B:C=a*c:b*c:b*c... simplified
-    const g=gcd(a*c,b*c);const A2=a*c/g,B2=b*c/g,C2=b*c/g;
-    // simpler: use a/b and b/c
-    const[n1,n2,n3]=twoNames().concat([rnd(NAMES)]);
-    const tot2=pick([52,65,78,91,104,117,130]);
-    const sum=a+b;const shareA=fmt(tot2*a/sum);const shareB=fmt(tot2*b/sum);
-    const w1=fmt(shareA+5),w2=fmt(shareA-5),w3=fmt(tot2*b/(a+b)+3);
-    return{text:`Rs. <strong>${tot2}</strong> is divided between <strong>${n1}</strong> and <strong>${n2}</strong> in ratio <strong>${a}:${b}</strong>. Find ${n1}'s share.`,
-    opts:shuffle([shareA,w1,w2,w3]),correct:shareA,
-    solution:`${n1}'s share = (${a}/${a+b})×${tot2} = <strong>Rs. ${shareA}</strong>`,type:'MCQ'}
+    const[n1,n2]=twoNames();const a=pick([2,3,4,5,6]);const b=pick([3,4,5,6,7,8]);
+    const tot=pick([55,66,78,91,104,117,130,156,182,208])*(a+b)/Math.round((a+b));
+    const clean=pick([100,200,300,400,500,600,700,800,900,1000]).valueOf();
+    const total=pick([a+b,2*(a+b),3*(a+b),4*(a+b),5*(a+b),6*(a+b),7*(a+b),8*(a+b),9*(a+b),10*(a+b)])*pick([10,20,25,50,100]);
+    const sa=fmt(total*a/(a+b));const sb=fmt(total*b/(a+b));
+    const w1=fmt(sa+100),w2=fmt(sa-100),w3=fmt(sb);
+    return{text:`Rs. <strong>${total.toLocaleString()}</strong> is divided between <strong>${n1}</strong> and <strong>${n2}</strong> in ratio <strong>${a}:${b}</strong>. Find ${n1}'s share.`,
+    opts:shuffle([sa,w1,w2,w3]),correct:sa,
+    solution:`${n1}'s share = (${a}/${a+b}) × ${total} = <strong>Rs. ${sa.toLocaleString()}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const a=pick([2,3,4,5]);const b=pick([3,4,5,6]);const c=pick([4,5,6,7]);
-    const tot=pick([270,360,450,540,630,720]);const sum=a+b+c;
-    const sa=fmt(tot*a/sum),sb=fmt(tot*b/sum),sc=fmt(tot*c/sum);
-    const w1=fmt(sb+10),w2=fmt(sb-10),w3=fmt(tot*a/(sum)+5);
-    return{text:`Rs. <strong>${tot}</strong> is divided among <strong>${A}, ${B}, ${C}</strong> in ratio <strong>${a}:${b}:${c}</strong>. Find <strong>${B}'s</strong> share.`,
+    const[A,B,C]=threeNames();const a=pick([1,2,3,4,5]);const b=pick([2,3,4,5,6]);const c=pick([3,4,5,6,7]);
+    const tot=(a+b+c)*pick([100,200,300,500,1000]);
+    const sa=fmt(tot*a/(a+b+c)),sb=fmt(tot*b/(a+b+c)),sc=fmt(tot*c/(a+b+c));
+    const w1=fmt(sb+50),w2=fmt(sb-50),w3=fmt(tot/3);
+    return{text:`Rs. <strong>${tot.toLocaleString()}</strong> divided among <strong>${A}, ${B}, ${C}</strong> in ratio <strong>${a}:${b}:${c}</strong>. Find <strong>${B}'s</strong> share.`,
     opts:shuffle([sb,w1,w2,w3]),correct:sb,
-    solution:`${B}'s share = (${b}/${sum})×${tot} = <strong>Rs. ${sb}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const a=pick([3,4,5,6,7]);const b=pick([4,5,6,7,8]);
-    const inc=pick([500,1000,1500,2000,2500]);
-    // (ax+inc)/(bx+inc) = p/q
-    const p=a+1;const q=b+1;// approximate
-    // ax+inc / bx+inc = p/q => qax+qinc=pbx+pinc => (qa-pb)x=(p-q)inc
-    // make it work: choose a=3,b=5, new ratio 5:8 e.g.
-    // solve: (3x+inc)/(5x+inc)=p/q => 3q*x+q*inc=5p*x+p*inc => x(3q-5p)=inc(p-q)
-    // pick numbers that give integer x
-    const nr=a,dr=b,np=pick([a+1,a+2]),nq=b+Math.floor((np-a)*b/a)+1;
-    const denom=nr*nq-dr*np;if(denom===0){}
-    const x=denom!==0?fmt(inc*(np-nq)/denom):100;
-    const origA=fmt(nr*Math.abs(x)),origB=fmt(dr*Math.abs(x));
-    const w1=fmt(Math.abs(origA)+inc),w2=fmt(Math.abs(origA)+100),w3=fmt(Math.abs(origA)-50);
-    // Simpler: just use known values
-    const xv=pick([100,200,300,400,500]);
-    const sA=a*xv,sB=b*xv;const incA=sA+inc;const incB=sB+inc;
-    const r=fmt(incA/incB*10)/10;
-    return{text:`Salaries of <strong>${A}</strong> and <strong>${B}</strong> are in ratio <strong>${a}:${b}</strong>. Each gets an increment of Rs. <strong>${inc}</strong>. If original salary of ${A} is Rs. <strong>${sA.toLocaleString()}</strong>, find new salary of ${B}.`,
-    opts:shuffle([incB,incB+500,incB-500,incB+1000]),correct:incB,
-    solution:`Original ${B} = Rs. ${sB}. After increment = ${sB}+${inc} = <strong>Rs. ${incB}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const p=pick([20,25,30,40,50]);
-    const tot=pick([1000,1200,1500,2000,2400]);
-    // A gets p% more than B: A=(1+p/100)*B, A+B=tot
-    const bShare=fmt(tot*100/(200+p));const aShare=fmt(tot-bShare);
-    const w1=fmt(aShare+50),w2=fmt(aShare-50),w3=fmt(bShare+50);
-    return{text:`<strong>${A}</strong> gets <strong>${p}%</strong> more than <strong>${B}</strong>. If total amount is Rs. <strong>${tot}</strong>, find ${A}'s share.`,
-    opts:shuffle([aShare,w1,w2,w3]),correct:aShare,
-    solution:`Let B=x, A=x×(1+${p}/100). A+B=${tot}. x(2+${p}/100)=${tot}. B=${bShare}. A=<strong>Rs. ${aShare}</strong>`,type:'MCQ'}
+    solution:`${B}'s share = (${b}/${a+b+c}) × ${tot} = <strong>Rs. ${sb.toLocaleString()}</strong>`,type:'MCQ'}
   },
   ()=>{
     const a=pick([2,3,4,5]);const b=pick([3,4,5,6]);
-    const c=a*pick([2,3,4]);const d=b*pick([2,3,4]);
-    const lcm_bd=lcm_f(b,c);
-    const A1=a*lcm_bd/b;const B1=lcm_bd;const B2=lcm_bd;const C1=d*lcm_bd/c;
-    const g1=gcd(gcd(A1,B1),C1);
+    const c=a*pick([2,3]);const d=b*pick([2,3]);
+    const lcmB=lcm_f(b,c);
+    const A1=a*lcmB/b;const B1=lcmB;const C1=d*lcmB/c;const g1=gcd(gcd(A1,B1),C1);
     return{text:`If <strong>A:B = ${a}:${b}</strong> and <strong>B:C = ${c}:${d}</strong>, find <strong>A:B:C</strong>.`,
     opts:shuffle([`${A1/g1}:${B1/g1}:${C1/g1}`,`${a}:${b}:${d}`,`${a*c}:${b*c}:${b*d}`,`${a}:${c}:${d}`]),
     correct:`${A1/g1}:${B1/g1}:${C1/g1}`,
-    solution:`A:B=${a}:${b}, B:C=${c}:${d}. Make B common: B=${lcm_bd}. A:B:C = <strong>${A1/g1}:${B1/g1}:${C1/g1}</strong>`,type:'MCQ'}
+    solution:`Make B common: A:B=${a}:${b}=${A1}:${B1}; B:C=${c}:${d}=${B1}:${C1}. A:B:C = <strong>${A1/g1}:${B1/g1}:${C1/g1}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const item=rnd(ITEMS);const x=pick([6,8,10,12,15]);const y=x+pick([2,3,4,5]);
-    const ratio=`${x}:${y}`;
-    const total=pick([300,450,600,750,900]);
-    const xpart=fmt(total*x/(x+y));const ypart=fmt(total*y/(x+y));
-    return{text:`<strong>Quantity Comparison — Data Sufficiency:</strong><br>Two containers have ${item} in ratio <strong>${ratio}</strong>. Total ${item} = <strong>${total} kg</strong>.<br>Q1: Amount in first container &nbsp; Q2: Amount in second container`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
-    correct:'Q1 < Q2',
-    solution:`First = (${x}/${x+y})×${total}=${xpart}, Second = ${ypart}. <strong>Q1 < Q2</strong>`,type:'Qty Comparison'}
-  },
-  ()=>{
-    const[A,B,C]=threeNames();const tot=pick([3600,4200,4800,5400,6000]);
-    const a=pick([2,3,4]);const b=a+pick([1,2]);const c=b+pick([1,2]);
-    const sum=a+b+c;const sa=fmt(tot*a/sum),sb=fmt(tot*b/sum),sc=fmt(tot*c/sum);
-    const diff=fmt(sc-sa);const w1=diff+100,w2=diff-100,w3=diff+200;
-    return{text:`Rs. <strong>${tot}</strong> is divided among <strong>${A}, ${B}, ${C}</strong> in ratio <strong>${a}:${b}:${c}</strong>. Find the difference between the largest and smallest share.`,
-    opts:shuffle([diff,w1,w2,w3]),correct:diff,
-    solution:`Shares: ${A}=${sa}, ${B}=${sb}, ${C}=${sc}. Difference = ${sc}−${sa} = <strong>Rs. ${diff}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const total=pick([560,630,700,840,980]);const a=pick([2,3,4,5]);const b=pick([3,4,5,6]);
-    const[A,B]=twoNames();const sa=fmt(total*a/(a+b));const sb=fmt(total*b/(a+b));
-    return{text:`<strong>Data Sufficiency:</strong> Find share of <strong>${A}</strong> when Rs. <strong>${total}</strong> is divided between ${A} and ${B}.<br><strong>I:</strong> Ratio is ${a}:${b}. &nbsp;<strong>II:</strong> ${B}'s share is Rs. ${sb}.`,
-    opts:['Only I','Only II','Either I or II','Both needed'],
-    correct:'Either I or II',
-    solution:`From I: ${A}=(${a}/${a+b})×${total}=${sa}. From II: ${A}=${total}−${sb}=${sa}. <strong>Either alone is sufficient.</strong>`,type:'Data Sufficiency'}
-  },
-  ()=>{
-    const a=pick([3,4,5,6]);const b=a+pick([1,2,3]);const p=pick([10,20,25,30]);
-    const[A,B]=twoNames();const xa=pick([200,300,400,500]);const xb=fmt(xa*b/a);
-    const newB=fmt(xb*(1+p/100));
-    const w1=fmt(newB+10),w2=fmt(newB-10),w3=fmt(xb+p);
-    return{text:`<strong>${A}</strong> and <strong>${B}</strong>'s incomes are in ratio <strong>${a}:${b}</strong>. If ${A}'s income is Rs. <strong>${xa}</strong> and ${B} gets a <strong>${p}%</strong> raise, find ${B}'s new income.`,
+    const[A,B]=twoNames();const r_a=pick([3,4,5,6,7]);const r_b=pick([4,5,6,7,8]);
+    const inc=pick([1000,2000,3000,4000,5000]);
+    const x=pick([100,200,300,400,500]);
+    const sA=r_a*x;const sB=r_b*x;const newB=sB+inc;
+    const w1=newB+500,w2=newB-500,w3=sB+inc*2;
+    return{text:`<strong>${A}</strong> and <strong>${B}</strong>'s salaries are in ratio <strong>${r_a}:${r_b}</strong>. If ${A}'s salary is Rs. <strong>${sA.toLocaleString()}</strong> and ${B} gets Rs. <strong>${inc.toLocaleString()}</strong> increment, find ${B}'s new salary.`,
     opts:shuffle([newB,w1,w2,w3]),correct:newB,
-    solution:`${B}'s current = (${b}/${a})×${xa}=Rs.${xb}. After ${p}% raise = ${xb}×${fmt(1+p/100)} = <strong>Rs. ${newB}</strong>`,type:'MCQ'}
+    solution:`${B}'s current = (${r_b}/${r_a})×${sA} = Rs.${sB}. After increment = ${sB}+${inc} = <strong>Rs. ${newB.toLocaleString()}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const x=pick([2,3,4,5,6]);const y=pick([3,4,5,6,7,8]);
-    const addA=pick([3,4,6,8]);const addB=pick([3,4,6,8]);
-    const[A,B]=twoNames();
-    // x:y currently; after adding addA to both => (x*k+addA):(y*k+addB)
-    const k=pick([5,10,15,20,25]);
-    const a=x*k,b=y*k;const na=a+addA,nb=b+addB;const g=gcd(na,nb);
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const tot=(100+pv(pe))*pick([10,20,30,40,50]);
+    const bShare=fmt(tot*100/(200+pv(pe)));const aShare=fmt(tot-parseFloat(bShare));
+    const w1=fmt(parseFloat(aShare)+50),w2=fmt(parseFloat(aShare)-50),w3=fmt(tot/2);
+    return{text:`<strong>${A}</strong> gets <strong>${pv(pe)}% (${pf(pe)})</strong> more than <strong>${B}</strong>. Total = Rs. <strong>${tot}</strong>. Find ${A}'s share.`,
+    opts:shuffle([aShare,w1,w2,w3]),correct:aShare,
+    solution:`Let B=x, A=x×(1+${pf(pe)}). Sum = x(2+${pf(pe)})=${tot}. B=${bShare}. A=<strong>Rs. ${aShare}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B,C]=threeNames();
+    // a<b<c strictly; tot = exact multiple of sum → integer shares always
+    const a=pick([1,2,3]);const b=a+pick([1,2,3]);const c=b+pick([1,2,3]);
+    const s=a+b+c;const unit=pick([100,200,300,500,1000]);const tot=s*unit;
+    const sa=tot*a/s,sb=tot*b/s,sc=tot*c/s;
+    const diff=sc-sa;// always >0 since c>a
+    const w1=diff+unit,w2=Math.max(1,diff-unit),w3=sc-sb;
+    return{text:`Rs. <strong>${tot.toLocaleString()}</strong> divided among <strong>${A}, ${B}, ${C}</strong> in ratio <strong>${a}:${b}:${c}</strong>. Difference: highest − lowest share?`,
+    opts:shuffle([diff,w1,w2,w3]),correct:diff,
+    solution:`Shares: ${A}=Rs.${sa}, ${B}=Rs.${sb}, ${C}=Rs.${sc}. Diff=${sc}−${sa}=<strong>Rs. ${diff}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const x=pick([2,3,4,5,6]);const y=pick([3,4,5,6,7,8]);
+    const k=pick([100,200,300,400,500]);const aAmt=x*k;const bAmt=y*k;
+    const addA=pick([100,200,300,500]);const addB=pick([100,200,300,500]);
+    const na=aAmt+addA;const nb=bAmt+addB;const g=gcd(na,nb);
     const w1=`${na/g+1}:${nb/g}`,w2=`${na}:${nb}`,w3=`${na/g}:${nb/g+1}`;
-    return{text:`<strong>${A}</strong> has Rs. <strong>${a}</strong> and <strong>${B}</strong> has Rs. <strong>${b}</strong>. If Rs. <strong>${addA}</strong> is added to ${A} and Rs. <strong>${addB}</strong> is added to ${B}, find new ratio.`,
+    return{text:`<strong>${A}</strong> has Rs. <strong>${aAmt}</strong> and <strong>${B}</strong> has Rs. <strong>${bAmt}</strong>. Rs. <strong>${addA}</strong> added to ${A}, Rs. <strong>${addB}</strong> to ${B}. New ratio?`,
     opts:shuffle([`${na/g}:${nb/g}`,w1,w2,w3]),correct:`${na/g}:${nb/g}`,
-    solution:`New ${A}=${na}, New ${B}=${nb}. Ratio = ${na}:${nb} = <strong>${na/g}:${nb/g}</strong>`,type:'MCQ'}
+    solution:`New ${A}=${na}, ${B}=${nb}. GCD=${g}. Ratio=<strong>${na/g}:${nb/g}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const total=pick([3,4,5,6,7,8,9,10])*100;
+    const a=pick([2,3,4,5]);const b=pick([3,4,5,6]);
+    const sa=fmt(total*a/(a+b));const sb=fmt(total*b/(a+b));
+    return{text:`<strong>Data Sufficiency:</strong> Find share of <strong>${A}</strong> when Rs. <strong>${total}</strong> is divided.<br><strong>I:</strong> Ratio ${A}:${B} = ${a}:${b}. &nbsp;<strong>II:</strong> ${B}'s share is Rs. ${sb}.`,
+    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Either I or II',
+    solution:`From I: (${a}/${a+b})×${total}=${sa}. From II: ${total}−${sb}=${sa}. <strong>Either alone sufficient.</strong>`,type:'Data Sufficiency'}
+  },
+  ()=>{
+    const item=rnd(ITEMS);const x=pick([4,5,6,7,8,9,10]);const y=x+pick([1,2,3,4]);
+    return{text:`<strong>Quantity Comparison:</strong> Two bags of ${item} in ratio <strong>${x}:${y}</strong>.<br>Q1: Amount in first bag &nbsp; Q2: Amount in second bag`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 < Q2',
+    solution:`Ratio ${x}:${y}. Since ${x}<${y}, first < second. <strong>Q1 < Q2</strong>`,type:'Qty Comparison'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const a=pick([3,4,5,6]);const b=a+pick([1,2]);
+    const pe=pickPct(PCT_SMALL);const xa=pick([200,300,400,500])*a;const xb=fmt(xa*b/a);
+    const newB=fmt(parseFloat(xb)*(1+pv(pe)/100));
+    const w1=fmt(parseFloat(newB)+10),w2=fmt(parseFloat(newB)-10),w3=fmt(parseFloat(xb)+pv(pe));
+    return{text:`<strong>${A}</strong> and <strong>${B}</strong>'s incomes in ratio <strong>${a}:${b}</strong>. ${A}'s = Rs. <strong>${xa}</strong>. ${B} gets <strong>${pv(pe)}%</strong> raise. ${B}'s new income?`,
+    opts:shuffle([newB,w1,w2,w3]),correct:newB,
+    solution:`${B}'s current=(${b}/${a})×${xa}=Rs.${xb}. After ${pf(pe)} raise=${xb}×(1+${pf(pe)})=<strong>Rs. ${newB}</strong>`,type:'MCQ'}
   },
 ]},
 
@@ -659,768 +737,781 @@ const CHAPTERS = {
 "Profit & Loss":{icon:"💹",color:"#10b981",templates:[
   ()=>{
     const shop=rnd(SHOPS);const item=rnd(ITEMS);
-    const cp=pick([100,120,150,160,200,240,250,300]);const pp=pick([5,10,12,15,20,25,30]);
-    const sp=fmt(cp*(1+pp/100));const w1=fmt(sp+5),w2=fmt(sp-5),w3=cp+pp;
-    return{text:`A <strong>${shop}</strong> buys <strong>${item}</strong> at Rs. <strong>${cp}</strong> per kg and sells at <strong>${pp}%</strong> profit. Find the selling price.`,
+    const pe=pickPct(PCT_SMALL);const cp=cleanBase(pe,50,2000);
+    const sp=fmt(cp*(1+pv(pe)/100));const w1=fmt(parseFloat(sp)+5),w2=fmt(parseFloat(sp)-5),w3=cp+pv(pe);
+    return{text:`A <strong>${shop}</strong> buys <strong>${item}</strong> at Rs. <strong>${cp}</strong> and sells at <strong>${pv(pe)}% (${pf(pe)})</strong> profit. Selling price?`,
     opts:shuffle([sp,w1,w2,w3]),correct:sp,
-    solution:`SP = ${cp} × (1 + ${pp}/100) = ${cp} × ${fmt(1+pp/100)} = <strong>Rs. ${sp}</strong>`,type:'MCQ'}
+    solution:`SP = CP × (1+${pf(pe)}) = ${cp}×${fmt(1+pv(pe)/100)} = <strong>Rs. ${sp}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const item=rnd(ITEMS);const cp=pick([100,150,200,250,300]);const lp=pick([5,8,10,12,15,20]);
-    const sp=fmt(cp*(1-lp/100));const w1=fmt(sp+5),w2=fmt(sp-5),w3=cp-lp;
-    return{text:`Cost price of <strong>${item}</strong> is Rs. <strong>${cp}</strong>. If sold at <strong>${lp}% loss</strong>, find selling price.`,
+    const item=rnd(ITEMS);const pe=pickPct(PCT_SMALL);const cp=cleanBase(pe,100,2000);
+    const sp=fmt(cp*(1-pv(pe)/100));const w1=fmt(parseFloat(sp)+5),w2=fmt(parseFloat(sp)-5),w3=cp-pv(pe);
+    return{text:`CP of <strong>${item}</strong> = Rs. <strong>${cp}</strong>. Sold at <strong>${pv(pe)}% (${pf(pe)})</strong> loss. Selling price?`,
     opts:shuffle([sp,w1,w2,w3]),correct:sp,
-    solution:`SP = ${cp} × (1 − ${lp}/100) = <strong>Rs. ${sp}</strong>`,type:'MCQ'}
+    solution:`SP = CP × (1−${pf(pe)}) = ${cp}×${fmt(1-pv(pe)/100)} = <strong>Rs. ${sp}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const sp=pick([110,120,130,140,150,160,180,200,220,240,250]);
-    const pp=pick([10,15,20,25,30]);const cp=fmt(sp*100/(100+pp));
-    const w1=fmt(cp+5),w2=fmt(cp-5),w3=fmt(sp*100/(100-pp));
-    return{text:`An article is sold at Rs. <strong>${sp}</strong> at a profit of <strong>${pp}%</strong>. Find cost price.`,
-    opts:shuffle([cp,w1,w2,w3]),correct:cp,
-    solution:`CP = SP × 100/(100+profit%) = ${sp}×100/${100+pp} = <strong>Rs. ${cp}</strong>`,type:'MCQ'}
+    const pe=pickPct(PCT_SMALL);const cp=cleanBase(pe,100,2000);
+    const sp=fmt(cp*(1+pv(pe)/100));
+    const w1=fmt(parseFloat(cp)+5),w2=fmt(cp-pv(pe)),w3=fmt(parseFloat(cp)*pv(pe)/100);
+    return{text:`An article sold at Rs. <strong>${sp}</strong> gives <strong>${pv(pe)}% (${pf(pe)})</strong> profit. Find cost price.`,
+    opts:shuffle([cp,fmt(w1),fmt(w2),fmt(w3)]),correct:cp,
+    solution:`CP = SP ÷ (1+${pf(pe)}) = ${sp} ÷ ${fmt(1+pv(pe)/100)} = <strong>Rs. ${cp}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const sp=pick([400,500,600,750,800,900,1000]);
-    const pp=pick([10,15,20,25]);const lp=pp;
-    const cp1=fmt(sp*100/(100+pp));const cp2=fmt(sp*100/(100-lp));
-    const totalCP=fmt(cp1+cp2);const totalSP=2*sp;const loss=fmt(totalCP-totalSP);
-    const lossP=fmt(loss/totalCP*100);
-    const w1=fmt(lossP+2),w2=fmt(lossP-2),w3=0;
-    return{text:`<strong>${A}</strong> sells two items each at Rs. <strong>${sp}</strong>. On one he gains <strong>${pp}%</strong> and on other loses <strong>${lp}%</strong>. Overall:`,
-    opts:shuffle([`${lossP}% Loss`,`${pp}% Profit`,`No profit no loss`,`${lossP+2}% Profit`]),
-    correct:`${lossP}% Loss`,
-    solution:`CP1=${cp1}, CP2=${cp2}. Total CP=${totalCP}, Total SP=${totalSP}. Loss=${loss}. Loss%=<strong>${lossP}%</strong> (same SP with equal gain/loss % always results in loss = common%²/100)`,type:'MCQ'}
+    // Equal SP — one gain%, one loss% — net result
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const sp=cleanBase(pe,500,5000);
+    const cp1=fmt(sp*100/(100+pv(pe)));const cp2=fmt(sp*100/(100-pv(pe)));
+    const totalCP=fmt(parseFloat(cp1)+parseFloat(cp2));
+    const loss=fmt(parseFloat(totalCP)-2*sp);const lossP=fmt(pv(pe)*pv(pe)/100);
+    const w1=`${pv(pe)}% Profit`,w2='No profit no loss',w3=`${fmt(parseFloat(lossP)+2)}% Loss`;
+    return{text:`Sells two items each at Rs. <strong>${sp}</strong>. Gain <strong>${pv(pe)}%</strong> on one, lose <strong>${pv(pe)}%</strong> on other. Overall?`,
+    opts:shuffle([`${lossP}% Loss`,w1,w2,w3]),correct:`${lossP}% Loss`,
+    solution:`Loss% = (${pv(pe)})²/100 = <strong>${lossP}%</strong> (same SP equal ±% always loses)`,type:'MCQ'}
   },
   ()=>{
-    const shop=rnd(SHOPS);const qty=pick([50,80,100,120,150]);
-    const cp=pick([10,12,15,20,25]);const sp1=fmt(cp*1.25);const sp2=fmt(cp*0.9);
+    const shop=rnd(SHOPS);const qty=pick([50,80,100,120,150,200]);
+    const cp=pick([10,12,15,20,25,30,40,50]);
+    const pe1=pickPct(PCT_SMALL.slice(2));const pe2_pool=PCT_SMALL.filter(p=>p[0]<pv(pe1));const pe2=pickPct(pe2_pool.length?pe2_pool:[PCT_SMALL[0]]);
+    const sp1=fmt(cp*(1+pv(pe1)/100));const sp2=fmt(cp*(1-pv(pe2)/100));
     const qty1=Math.floor(qty*0.6);const qty2=qty-qty1;
-    const totalCP=cp*qty;const totalSP=sp1*qty1+sp2*qty2;
-    const profit=fmt(totalSP-totalCP);const pctProfit=fmt((totalSP-totalCP)/totalCP*100);
-    const w1=fmt(pctProfit+5),w2=fmt(pctProfit-5),w3=fmt(pctProfit+2.5);
-    return{text:`A <strong>${shop}</strong> buys <strong>${qty} kg</strong> at Rs. <strong>${cp}/kg</strong>. Sells <strong>${qty1} kg</strong> at Rs. <strong>${sp1}/kg</strong> and rest at Rs. <strong>${sp2}/kg</strong>. Profit/Loss %?`,
-    opts:shuffle([`${pctProfit}% ${totalSP>totalCP?'Profit':'Loss'}`,`${w1}% Profit`,`${w2}% Loss`,`${w3}% Profit`]),
-    correct:`${pctProfit}% ${totalSP>totalCP?'Profit':'Loss'}`,
-    solution:`CP=${totalCP}, SP=${fmt(totalSP)}. ${totalSP>totalCP?'Profit':'Loss'}=${fmt(Math.abs(totalSP-totalCP))}. %=<strong>${pctProfit}%</strong>`,type:'MCQ'}
+    const totalCP=cp*qty;const totalSP=fmt(parseFloat(sp1)*qty1+parseFloat(sp2)*qty2);
+    const pctResult=fmt((parseFloat(totalSP)-totalCP)/totalCP*100);
+    const w1=fmt(Math.abs(parseFloat(pctResult))+2),w2=fmt(Math.abs(parseFloat(pctResult))-2);
+    return{text:`Buys <strong>${qty} units</strong> @ Rs. <strong>${cp}</strong>. Sells <strong>${qty1}</strong> at <strong>${pv(pe1)}%</strong> profit & rest at <strong>${pv(pe2)}%</strong> loss. Overall %?`,
+    opts:shuffle([`${pctResult}%`,`${w1}%`,`${w2}%`,`${fmt(pv(pe1)-pv(pe2))}%`]),correct:`${pctResult}%`,
+    solution:`CP=${totalCP}, SP=${totalSP}. Profit/Loss%=<strong>${pctResult}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const mp=pick([100,120,150,160,200,240,250]);const disc=pick([5,10,15,20,25]);
-    const sp=fmt(mp*(1-disc/100));const pp=pick([10,15,20,25]);const cp=fmt(sp*100/(100+pp));
-    const markup=fmt((mp-cp)/cp*100);
-    const w1=fmt(markup+5),w2=fmt(markup-5),w3=fmt(disc+pp);
-    return{text:`Marked price = Rs. <strong>${mp}</strong>. Discount = <strong>${disc}%</strong>. Profit = <strong>${pp}%</strong> on CP. What % above CP is marked price?`,
-    opts:shuffle([`${markup}%`,`${w1}%`,`${w2}%`,`${disc+pp}%`]),correct:`${markup}%`,
-    solution:`SP=${sp}. CP=${cp}. Markup%=(${mp}−${cp})/${cp}×100 = <strong>${markup}%</strong>`,type:'MCQ'}
+    const peMark=pickPct(PCT_SMALL.concat(PCT_MID.filter(p=>p[0]>25&&p[0]<=50)));
+    const peDisc=pickPct(PCT_SMALL);
+    const cp=cleanBase(peMark,100,2000);
+    const mp=fmt(cp*(1+pv(peMark)/100));const sp=fmt(parseFloat(mp)*(1-pv(peDisc)/100));
+    const net=fmt((parseFloat(sp)-cp)/cp*100);
+    const w1=fmt(Math.abs(parseFloat(net))+2),w2=fmt(pv(peMark)-pv(peDisc)),w3=fmt(Math.abs(parseFloat(net))-2);
+    return{text:`Marks goods <strong>${pv(peMark)}% (${pf(peMark)})</strong> above CP. Gives <strong>${pv(peDisc)}%</strong> discount. Net profit/loss %?`,
+    opts:shuffle([`${parseFloat(net)>=0?net+'% Profit':Math.abs(parseFloat(net))+'% Loss'}`,`${w1}% Profit`,`${w2}% Profit`,`${w3}% Loss`]),
+    correct:`${parseFloat(net)>=0?net+'% Profit':Math.abs(parseFloat(net))+'% Loss'}`,
+    solution:`MP=${mp}. SP=${sp}. Net=(SP-CP)/CP×100=<strong>${net}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const cp=pick([100,150,200,250,300,400,500]);const mp_up=pick([20,25,30,40,50]);
-    const disc=pick([5,10,15,20]);const mp=fmt(cp*(1+mp_up/100));
-    const sp=fmt(mp*(1-disc/100));const net=fmt((sp-cp)/cp*100);
-    const w1=fmt(net+3),w2=fmt(net-3),w3=fmt(mp_up-disc);
-    return{text:`A <strong>${rnd(SHOPS)}</strong> marks goods <strong>${mp_up}%</strong> above CP and gives <strong>${disc}%</strong> discount. Find profit/loss %.`,
-    opts:shuffle([`${net>0?net+'% Profit':Math.abs(net)+'% Loss'}`,`${w1}% Profit`,`${mp_up-disc}% Profit`,`${w2}% Profit`]),
-    correct:`${net>0?net+'% Profit':Math.abs(net)+'% Loss'}`,
-    solution:`MP=${mp}, SP=${sp}, CP=${cp}. Net=(${sp}−${cp})/${cp}×100=<strong>${net}%</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const cp=pick([500,600,800,1000,1200]);const pp=pick([15,20,25,30]);
-    const sp=fmt(cp*(1+pp/100));
-    return{text:`<strong>Data Sufficiency:</strong> Find profit earned on selling an article.<br><strong>I:</strong> CP is Rs. <strong>${cp}</strong>. &nbsp;<strong>II:</strong> Profit% is <strong>${pp}%</strong>.`,
+    // Find CP from SP + profit%
+    const pe=pickPct(PCT_SMALL);const sp=cleanBase(pe,200,5000);
+    const cp=fmt(sp*100/(100+pv(pe)));const profit=fmt(parseFloat(sp)-parseFloat(cp));
+    return{text:`<strong>Data Sufficiency:</strong> Find profit earned.<br><strong>I:</strong> CP is Rs. <strong>${cp}</strong>.<br><strong>II:</strong> Profit% is <strong>${pv(pe)}%</strong>.`,
     opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`Profit = CP × profit% / 100. Need both CP and profit%. From I+II: Profit = ${cp}×${pp}/100 = <strong>Rs. ${fmt(cp*pp/100)}</strong>. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+    solution:`Profit=CP×${pf(pe)}=${cp}×${pf(pe)}=Rs. ${profit}. Need both CP and rate. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
   ()=>{
-    const sp=pick([800,900,1000,1100,1200,1500]);const pp=pick([10,15,20,25]);
-    const lp=pick([5,8,10,12,15]);
-    const cp_profit=fmt(sp*100/(100+pp));const cp_loss=fmt(sp*100/(100-lp));
-    const rel=cp_profit<cp_loss?'Q1 < Q2':cp_profit>cp_loss?'Q1 > Q2':'Q1 = Q2';
-    return{text:`<strong>Qty Comparison:</strong> SP = Rs. <strong>${sp}</strong><br>Q1: CP when selling gives <strong>${pp}%</strong> profit<br>Q2: CP when selling gives <strong>${lp}%</strong> loss`,
+    const pe1=pickPct(PCT_SMALL.slice(0,-2));const _pe2pool=PCT_SMALL.filter(p=>p[0]>pv(pe1));const pe2=pickPct(_pe2pool.length?_pe2pool:[PCT_SMALL[PCT_SMALL.length-1]]);
+    const sp=cleanBase(pe1,500,5000);
+    const cp_profit=fmt(sp*100/(100+pv(pe1)));const cp_loss=fmt(sp*100/(100-pv(pe2)));
+    const rel=parseFloat(cp_profit)<parseFloat(cp_loss)?'Q1 < Q2':'Q1 > Q2';
+    return{text:`<strong>Qty Comparison:</strong> SP = Rs. <strong>${sp}</strong><br>Q1: CP when this SP gives <strong>${pv(pe1)}%</strong> profit<br>Q2: CP when this SP gives <strong>${pv(pe2)}%</strong> loss`,
     opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
-    solution:`Q1=${cp_profit}, Q2=${cp_loss}. <strong>${rel}</strong> (lower CP with same SP = higher profit)`,type:'Qty Comparison'}
+    solution:`Q1=${cp_profit}, Q2=${cp_loss}. Profit→lower CP; Loss→higher CP. <strong>${rel}</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const shop=rnd(SHOPS);const item=rnd(ITEMS);
-    const cp=pick([80,100,120,150,200]);const disc_pct=pick([5,10,15,20]);
-    const actual_sp=pick([90,100,110,120,130,150,160]);
-    const stated_mp=fmt(actual_sp/(1-disc_pct/100));
-    const profit_pct=fmt((actual_sp-cp)/cp*100);
-    const w1=fmt(profit_pct+5),w2=fmt(profit_pct-5),w3=fmt((stated_mp-cp)/cp*100);
-    return{text:`A <strong>${shop}</strong> buys <strong>${item}</strong> for Rs. <strong>${cp}</strong> and marks it such that after <strong>${disc_pct}%</strong> discount he earns Rs. <strong>${actual_sp}</strong>. Find profit %.`,
-    opts:shuffle([`${profit_pct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${profit_pct}%`,
-    solution:`CP=${cp}, SP=${actual_sp}. Profit%=(${actual_sp}−${cp})/${cp}×100=<strong>${profit_pct}%</strong>`,type:'MCQ'}
+    const pe=pickPct(PCT_SMALL);const cp=cleanBase(pe,200,2000);const n=pick([2,3,4,5]);
+    const totalCP=cp*n;const sp_total=fmt(totalCP*(1+pv(pe)/100));
+    const sp_each=fmt(parseFloat(sp_total)/n);
+    const w1=fmt(parseFloat(sp_each)+5),w2=fmt(parseFloat(sp_each)-5),w3=fmt(cp*(1+pv(pe)/200));
+    return{text:`<strong>${n} articles</strong> bought for Rs. <strong>${totalCP}</strong> total. To earn <strong>${pv(pe)}% (${pf(pe)})</strong> profit, what SP per article?`,
+    opts:shuffle([sp_each,w1,w2,w3]),correct:sp_each,
+    solution:`Total SP = ${totalCP}×(1+${pf(pe)}) = ${sp_total}. Per article = ${sp_total}/${n} = <strong>Rs. ${sp_each}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const peDisc=pickPct(PCT_SMALL.slice(2));const _peLossPool=PCT_SMALL.filter(p=>p[0]<pv(peDisc));const peLoss=pickPct(_peLossPool.length?_peLossPool:[PCT_SMALL[0]]);
+    const mp=cleanBase(peDisc,200,2000);
+    const sp=fmt(parseFloat(mp)*(1-pv(peDisc)/100));
+    const cp=fmt(parseFloat(sp)/(1-pv(peLoss)/100));
+    const markup=fmt((parseFloat(mp)-parseFloat(cp))/parseFloat(cp)*100);
+    const w1=fmt(parseFloat(markup)+5),w2=fmt(parseFloat(markup)-5),w3=fmt(pv(peDisc)+pv(peLoss));
+    return{text:`MP = Rs. <strong>${mp}</strong>. After <strong>${pv(peDisc)}%</strong> discount, still makes <strong>${pv(peLoss)}%</strong> loss on CP. CP = Rs. ${fmt(cp)}. MP is what % above CP?`,
+    opts:shuffle([`${markup}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${markup}%`,
+    solution:`SP=${sp}, CP=${fmt(cp)}. Markup%=(MP-CP)/CP×100=(${mp}-${fmt(cp)})/${fmt(cp)}×100=<strong>${markup}%</strong>`,type:'MCQ'}
   },
 ]},
 
 // ─────────────────── SI & CI ───────────────────
 "SI & CI":{icon:"💰",color:"#f59e0b",templates:[
   ()=>{
-    const[A]=twoNames();const p=pick([5000,6000,8000,10000,12000,15000,20000]);
-    const r=pick([5,6,8,10,12,15]);const t=pick([2,3,4,5]);
-    const si=fmt(p*r*t/100);const w1=si+100,w2=si-100,w3=p*r*t/10;
-    return{text:`Find Simple Interest on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${r}%</strong> p.a. for <strong>${t} years</strong>.`,
+    const pe=pickPct(PCT_SMALL);const t=pick([2,3,4,5]);
+    const p=cleanBase(pe,1000,50000);const si=applyPct(p,pe)*t;
+    const w1=si+100,w2=si-100,w3=si*t;
+    return{text:`Find SI on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${pv(pe)}% (${pf(pe)})</strong> p.a. for <strong>${t} year${t>1?'s':''}</strong>.`,
     opts:shuffle([si,w1,w2,w3]),correct:si,
-    solution:`SI = P×R×T/100 = ${p}×${r}×${t}/100 = <strong>Rs. ${si}</strong>`,type:'MCQ'}
+    solution:`SI = P×R×T/100 = ${p}×${pv(pe)}/100×${t} = ${pf(pe)}×${p}×${t} = <strong>Rs. ${si}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([5000,8000,10000,12000,15000,20000]);const r=pick([5,8,10,12,15,20]);
-    const t=pick([2,3]);const ci=fmt(p*(Math.pow(1+r/100,t)-1));
-    const si=fmt(p*r*t/100);const diff=fmt(ci-si);
-    const w1=fmt(diff+50),w2=fmt(diff-50),w3=fmt(diff*2);
-    return{text:`Find the difference between CI and SI on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${r}%</strong> for <strong>${t} years</strong>.`,
+    const pe=pickPct(PCT_SMALL);const t=2;
+    const p=cleanBase(pe,1000,30000);
+    const ci=fmt(p*(Math.pow(1+pv(pe)/100,t)-1));
+    const si=applyPct(p,pe)*t;const diff=fmt(parseFloat(ci)-si);
+    const w1=fmt(parseFloat(diff)+50),w2=fmt(parseFloat(diff)-50),w3=fmt(parseFloat(diff)*2);
+    return{text:`Difference between CI and SI on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${pv(pe)}% (${pf(pe)})</strong> for <strong>2 years</strong>?`,
     opts:shuffle([diff,w1,w2,w3]),correct:diff,
-    solution:`SI=${si}. CI=${ci}. Difference=<strong>Rs. ${diff}</strong> (For 2 yrs: Diff=P×(r/100)²=${fmt(p*r*r/10000)})`,type:'MCQ'}
+    solution:`Diff = P×(R/100)² = ${p}×(${pf(pe)})² = <strong>Rs. ${diff}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([5000,8000,10000,12000,15000]);const r=pick([5,8,10,12,15]);const t=pick([2,3,4]);
-    const amount=fmt(p*Math.pow(1+r/100,t));const ci=fmt(amount-p);
-    const w1=fmt(ci+100),w2=fmt(ci-100),w3=fmt(p*r*t/100);
-    return{text:`Find Compound Interest on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${r}%</strong> p.a. compounded annually for <strong>${t} years</strong>.`,
-    opts:shuffle([ci,w1,w2,w3]),correct:ci,
-    solution:`A = ${p}×(1+${r}/100)^${t} = ${p}×${fmt(Math.pow(1+r/100,t))} = ${amount}. CI = A−P = <strong>Rs. ${ci}</strong>`,type:'MCQ'}
+    const pe=pickPct(PCT_SMALL);const t=pick([2,3]);
+    const p=cleanBase(pe,1000,20000);
+    const amount=fmt(p*Math.pow(1+pv(pe)/100,t));const ci=fmt(parseFloat(amount)-p);
+    const w1=fmt(parseFloat(ci)+100),w2=fmt(parseFloat(ci)-100),w3=applyPct(p,pe)*t;
+    return{text:`CI on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${pv(pe)}% (${pf(pe)})</strong> p.a. for <strong>${t} year${t>1?'s':''}</strong>?`,
+    opts:shuffle([ci,fmt(w1),fmt(w2),fmt(w3)]),correct:ci,
+    solution:`A = ${p}×(1+${pf(pe)})^${t} = ${p}×${fmt(Math.pow(1+pv(pe)/100,t))} = ${amount}. CI = A−P = <strong>Rs. ${ci}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const r=pick([4,5,8,10,12]);const t=pick([2,3,4,5,6,8,10]);
-    const[A]=twoNames();
-    const doubles_in=fmt(100/r);
-    const triples_in=fmt(200/r);
-    const w1=fmt(triples_in+t),w2=fmt(triples_in-t),w3=fmt(doubles_in*2);
-    return{text:`A sum triples itself in <strong>${triples_in} years</strong> at SI. In how many years does it double?`,
-    opts:shuffle([fmt(doubles_in),fmt(triples_in/2),fmt(triples_in+5),fmt(doubles_in+triples_in/4)]),
-    correct:fmt(doubles_in),
-    solution:`If sum triples in ${triples_in} yrs at SI, SI = 2P in ${triples_in} yrs. Rate = 200/${triples_in} = ${r}%. To double: SI=P → T = 100/${r} = <strong>${doubles_in} years</strong>`,type:'MCQ'}
+    const pe=pickPct(PCT_SMALL);
+    const doubles_in=fmt(100/pv(pe));const triples_in=fmt(200/pv(pe));
+    const w1=fmt(parseFloat(doubles_in)+1),w2=fmt(parseFloat(doubles_in)-1),w3=fmt(parseFloat(triples_in)/3);
+    return{text:`A sum doubles at SI in <strong>${doubles_in} years</strong>. Rate = <strong>${pv(pe)}% (${pf(pe)})</strong>. In how many years does it triple?`,
+    opts:shuffle([triples_in,fmt(w1*2),fmt(parseFloat(doubles_in)*3),fmt(parseFloat(triples_in)+5)]),correct:triples_in,
+    solution:`To double: SI=P in ${doubles_in}yrs → R=${pv(pe)}%. To triple: SI=2P → T=200/${pv(pe)}=<strong>${triples_in} years</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([5000,8000,10000,12000,15000]);const r=pick([5,8,10,12,15]);
-    const t=2;const ci=fmt(p*Math.pow(1+r/100,t)-p);const si=fmt(p*r*t/100);
-    const sum=fmt(ci+si);const w1=fmt(sum+100),w2=fmt(sum-100),w3=fmt(ci*2);
-    return{text:`<strong>Quantity Comparison:</strong> Principal = Rs. <strong>${p.toLocaleString()}</strong>, Rate = <strong>${r}%</strong>, Time = <strong>2 years</strong><br>Q1: Compound Interest &nbsp;&nbsp; Q2: Simple Interest`,
+    const pe=pickPct(PCT_SMALL);const t=2;
+    const p=cleanBase(pe,5000,30000);
+    const ci=fmt(p*(Math.pow(1+pv(pe)/100,t)-1));const si=applyPct(p,pe)*t;
+    return{text:`<strong>Quantity Comparison:</strong> P=Rs.<strong>${p.toLocaleString()}</strong>, R=<strong>${pv(pe)}%</strong>, T=<strong>2 years</strong><br>Q1: Compound Interest &nbsp;&nbsp; Q2: Simple Interest`,
     opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 > Q2',
-    solution:`CI=${ci}, SI=${si}. CI always > SI for same P, R, T > 1 year. <strong>Q1 > Q2</strong>`,type:'Qty Comparison'}
+    solution:`CI=${ci}, SI=${si}. CI always > SI for T>1yr. <strong>Q1 > Q2</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const si=pick([2000,2400,3000,3600,4000,4800]);const t=pick([2,3,4,5]);
-    const r=pick([5,6,8,10,12,15]);const p=fmt(si*100/(r*t));
-    const w1=fmt(p+500),w2=fmt(p-500),w3=fmt(p+200);
-    return{text:`SI on a sum for <strong>${t} years</strong> at <strong>${r}%</strong> p.a. is Rs. <strong>${si}</strong>. Find the principal.`,
+    const si=pick([2000,2400,3000,3600,4000,4800,6000]);const t=pick([2,3,4,5]);
+    const pe=pickPct(PCT_SMALL);const p=fmt(si*100/(pv(pe)*t));
+    const w1=fmt(parseFloat(p)+500),w2=fmt(parseFloat(p)-500),w3=fmt(parseFloat(p)+200);
+    return{text:`SI on a sum for <strong>${t} years</strong> at <strong>${pv(pe)}% (${pf(pe)})</strong> is Rs. <strong>${si.toLocaleString()}</strong>. Find the principal.`,
     opts:shuffle([p,w1,w2,w3]),correct:p,
-    solution:`P = SI×100/(R×T) = ${si}×100/(${r}×${t}) = <strong>Rs. ${p}</strong>`,type:'MCQ'}
+    solution:`P = SI × 100/(R×T) = ${si} × 100/(${pv(pe)}×${t}) = ${si}/(${pf(pe)}×${t}) = <strong>Rs. ${p}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const p=pick([10000,12000,15000,20000]);const r=pick([10,12,15,20]);
-    const t=2;const half_r=r/2;
-    const ci_half=fmt(p*Math.pow(1+half_r/100,2*t)-p);
-    const ci_annual=fmt(p*Math.pow(1+r/100,t)-p);const diff=fmt(ci_half-ci_annual);
-    const w1=fmt(diff+100),w2=fmt(diff-50),w3=fmt(diff*2);
-    return{text:`Find CI on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${r}%</strong> p.a. for <strong>2 years</strong> when compounded half-yearly.`,
-    opts:shuffle([ci_half,ci_annual,fmt(ci_half+200),fmt(ci_half-100)]),correct:ci_half,
-    solution:`Half-yearly rate=${half_r}%, periods=${2*t}. A=${p}×(1+${half_r}/100)^${2*t}=${fmt(p*Math.pow(1+half_r/100,2*t))}. CI=<strong>Rs. ${ci_half}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const r=pick([5,8,10,12,15]);const t=pick([2,3,4]);
-    const p1=pick([5000,8000,10000]);const p2=pick([5000,8000,10000]);
-    return{text:`<strong>Data Sufficiency:</strong> Which gives more interest — ${A}'s deposit or ${B}'s?<br><strong>I:</strong> ${A} deposits Rs.${p1} at ${r}% SI for ${t} yrs.<br><strong>II:</strong> ${B} deposits Rs.${p2} at ${r}% CI for ${t} yrs.`,
-    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`Need both amounts. ${A}'s SI=${fmt(p1*r*t/100)}, ${B}'s CI=${fmt(p2*(Math.pow(1+r/100,t)-1))}. <strong>Both statements needed to compare.</strong>`,type:'Data Sufficiency'}
-  },
-  ()=>{
-    const p=pick([5000,8000,10000,12000]);const t=pick([2,3,4,5]);
-    const r=pick([5,8,10,12,15]);
-    const amount=fmt(p+p*r*t/100);const w1=fmt(amount+100),w2=fmt(amount-100),w3=fmt(amount*1.05);
-    return{text:`Rs. <strong>${p.toLocaleString()}</strong> is invested at <strong>${r}%</strong> p.a. SI for <strong>${t} years</strong>. Find the amount.`,
+    const pe=pickPct(PCT_SMALL);const t=pick([2,3,4,5]);
+    const p=cleanBase(pe,2000,30000);const amount=fmt(p+applyPct(p,pe)*t);
+    const w1=fmt(parseFloat(amount)+100),w2=fmt(parseFloat(amount)-100),w3=fmt(parseFloat(amount)*1.05);
+    return{text:`Rs. <strong>${p.toLocaleString()}</strong> invested at <strong>${pv(pe)}% (${pf(pe)})</strong> SI for <strong>${t} years</strong>. Find amount.`,
     opts:shuffle([amount,w1,w2,w3]),correct:amount,
-    solution:`SI=${fmt(p*r*t/100)}. Amount = P+SI = ${p}+${fmt(p*r*t/100)} = <strong>Rs. ${amount}</strong>`,type:'MCQ'}
+    solution:`SI = ${pf(pe)}×${p}×${t} = ${fmt(applyPct(p,pe)*t)}. Amount = ${p}+${fmt(applyPct(p,pe)*t)} = <strong>Rs. ${amount}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const a1=pick([1100,1200,1300,1400,1500]);const t1=pick([2,3]);const a2=a1+pick([100,150,200,250]);const t2=t1+1;
-    // SI: A=P+PRT/100=P(1+RT/100). From two conditions find P and R
-    // a1=P(1+r*t1/100), a2=P(1+r*t2/100) => a2/a1=(1+r*t2/100)/(1+r*t1/100)
-    const r=pick([5,8,10,12]);const p=fmt(a1*100/(100+r*t1));
-    const w1=fmt(p+100),w2=fmt(p-50),w3=fmt(p+50);
-    return{text:`A sum becomes Rs. <strong>${a1}</strong> in <strong>${t1} years</strong> at SI. Rate = <strong>${r}%</strong> p.a. Find the principal.`,
-    opts:shuffle([p,w1,w2,w3]),correct:p,
-    solution:`A = P(1+RT/100). ${a1} = P(1+${r}×${t1}/100) = P×${fmt(1+r*t1/100)}. P = <strong>Rs. ${p}</strong>`,type:'MCQ'}
+    const pe=pickPct(PCT_SMALL);const t=pick([2,3]);const p=cleanBase(pe,5000,30000);
+    const halfR=pv(pe)/2;const ci_half=fmt(p*Math.pow(1+halfR/100,2*t)-p);
+    const ci_ann=fmt(p*Math.pow(1+pv(pe)/100,t)-p);
+    const w1=ci_ann,w2=fmt(parseFloat(ci_half)+200),w3=fmt(parseFloat(ci_half)-200);
+    return{text:`CI on Rs. <strong>${p.toLocaleString()}</strong> at <strong>${pv(pe)}%</strong> for <strong>${t} years</strong> compounded <strong>half-yearly</strong>?`,
+    opts:shuffle([ci_half,w1,w2,w3]),correct:ci_half,
+    solution:`Half-yearly rate=${halfR}%, periods=${2*t}. A=${p}×(1+${halfR}/100)^${2*t}=${fmt(p*Math.pow(1+halfR/100,2*t))}. CI=<strong>Rs. ${ci_half}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const pe=pickPct(PCT_SMALL);const t=pick([2,3,4]);const p=cleanBase(pe,1000,20000);
+    const a=fmt(p*(1+pv(pe)*t/100));const w1=fmt(parseFloat(p)+pv(pe)*t),w2=fmt(parseFloat(a)+100),w3=fmt(parseFloat(a)-100);
+    return{text:`A sum becomes Rs. <strong>${fmt(a)}</strong> in <strong>${t} years</strong> at SI at <strong>${pv(pe)}% (${pf(pe)})</strong>. Find principal.`,
+    opts:shuffle([p,fmt(w1),fmt(w2),fmt(w3)]),correct:p,
+    solution:`A=P(1+RT/100). P=${fmt(a)}/(1+${pv(pe)}×${t}/100)=${fmt(a)}/${fmt(1+pv(pe)*t/100)}=<strong>Rs. ${p}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);const t=pick([2,3,4]);
+    return{text:`<strong>Data Sufficiency:</strong> Which gives more interest?<br><strong>I:</strong> ${A} deposits Rs.10000 at ${pv(pe)}% SI for ${t} yrs.<br><strong>II:</strong> ${B} deposits Rs.12000 at ${pv(pe)}% CI for ${t} yrs.`,
+    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
+    solution:`${A}'s SI=${fmt(10000*pv(pe)*t/100)}, ${B}'s CI=${fmt(12000*(Math.pow(1+pv(pe)/100,t)-1))}. Need both to compare. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
 ]},
 
 // ─────────────────── TIME & WORK ───────────────────
 "Time & Work":{icon:"🔧",color:"#ef4444",templates:[
   ()=>{
-    const[A,B]=twoNames();const da=pick([6,8,10,12,15,18,20,24]);const db=pick([8,10,12,15,18,20,24,30]);
-    const together=fmt(da*db/(da+db));const w1=fmt(together+2),w2=fmt(together-1),w3=fmt(da+db);
-    return{text:`<strong>${A}</strong> can do a work in <strong>${da} days</strong>, <strong>${B}</strong> in <strong>${db} days</strong>. How many days to finish together?`,
-    opts:shuffle([together,w1,w2,w3]),correct:together,
-    solution:`Combined rate = 1/${da}+1/${db} = ${da+db}/${da*db}. Days = ${da*db}/${da+db} = <strong>${together} days</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const da=pick([6,8,10,12,15,18,20,24,30]);const db=pick([8,10,12,15,18,20,24,30,36]);
+    const together=fmt(da*db/(da+db));const w1=fmt(parseFloat(together)+2),w2=fmt(parseFloat(together)-1),w3=da+db;
+    return{text:`<strong>${A}</strong> does work in <strong>${da} days</strong>, <strong>${B}</strong> in <strong>${db} days</strong>. Together?`,
+    opts:shuffle([together,w1,w2,fmt(w3)]),correct:together,
+    solution:`Rate = 1/${da}+1/${db} = ${da+db}/${da*db}. Days = ${da*db}/${da+db} = <strong>${together} days</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const da=pick([10,12,15,18,20,24,30]);const db=pick([12,15,18,20,24,30,36]);
+    // Pick together days so that 0 < done < 0.75 (leaves meaningful remainder for B)
+    const maxTog=Math.floor(0.6/(1/da+1/db));
+    const togOpts=[2,3,4,5,6].filter(t=>t<=maxTog&&t>=1);
+    const together=togOpts.length?pick(togOpts):2;
+    const done=together*(1/da+1/db);const left=fmt(Math.max(0.01,1-done));
+    const rem=fmt(Math.max(0.1,parseFloat(left)*db));
+    const w1=fmt(parseFloat(rem)+2),w2=fmt(parseFloat(rem)-2),w3=fmt(parseFloat(rem)+3);
+    return{text:`<strong>${A}</strong> (${da}d) and <strong>${B}</strong> (${db}d) work together for <strong>${together} days</strong>. ${A} leaves. Days for ${B} to finish?`,
+    opts:shuffle([rem,w1,w2,w3]),correct:rem,
+    solution:`Done=${together}×(1/${da}+1/${db})=${fmt(done)}. Left=${left}. ${B} needs ${left}×${db}=<strong>${rem} days</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const men=pick([10,12,15,16,18,20,24,25,30]);const days=pick([10,12,15,16,18,20]);
+    const hrs=8;const newH=pick([6,9,10,12]);const newD=pick([8,10,12,15,16]);
+    const total=men*days*hrs;const newMen=fmt(total/(newH*newD));
+    const w1=fmt(parseFloat(newMen)+2),w2=fmt(parseFloat(newMen)-2),w3=fmt(parseFloat(newMen)+4);
+    return{text:`<strong>${men} men</strong> work <strong>${hrs} hrs/day</strong> for <strong>${days} days</strong>. How many men (${newH} hrs/day) to finish in <strong>${newD} days</strong>?`,
+    opts:shuffle([newMen,w1,w2,w3]),correct:newMen,
+    solution:`Total man-hrs=${men}×${hrs}×${days}=${total}. Men=${total}/(${newH}×${newD})=<strong>${newMen}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const fa=pick([10,12,15,18,20,24]);const fb=pick([12,15,18,20,24,30]);const ec=pick([6,8,10,12,15]);
+    const net=1/fa+1/fb-1/ec;const time=net>0?fmt(1/net):null;
+    if(!time)return{text:`Pipe A fills in ${fa}m, B in ${fb}m, C empties in ${ec}m. All opened—tank ever fills?`,
+      opts:['Never fills','100 min','50 min','200 min'],correct:'Never fills',
+      solution:`Net rate=1/${fa}+1/${fb}-1/${ec}=${fmt(net)}<0. <strong>Tank never fills.</strong>`,type:'MCQ'};
+    const w1=fmt(parseFloat(time)+5),w2=fmt(parseFloat(time)-5),w3=fmt(parseFloat(time)+10);
+    return{text:`Pipe A fills tank in <strong>${fa} min</strong>, B in <strong>${fb} min</strong>, C empties in <strong>${ec} min</strong>. All open — time to fill?`,
+    opts:shuffle([time,w1,w2,w3]),correct:time,
+    solution:`Net rate=1/${fa}+1/${fb}−1/${ec}=${fmt(net)}. Time=<strong>${time} min</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const eff=pick([2,3,4,5]);const[A,B]=twoNames();const db=pick([12,15,18,20,24,30]);
+    const da=fmt(db/eff);const tog=fmt(parseFloat(da)*db/(parseFloat(da)+db));
+    const w1=fmt(parseFloat(tog)+2),w2=fmt(parseFloat(tog)-1),w3=da;
+    return{text:`<strong>${A}</strong> is <strong>${eff}×</strong> as efficient as <strong>${B}</strong>. ${B} takes <strong>${db} days</strong>. Together?`,
+    opts:shuffle([tog,w1,w2,w3]),correct:tog,
+    solution:`${A} takes ${da} days. Together=${da}×${db}/(${da}+${db})=<strong>${tog} days</strong>`,type:'MCQ'}
   },
   ()=>{
     const[A,B]=twoNames();const da=pick([10,12,15,18,20,24]);const db=pick([12,15,18,20,24,30]);
-    const days_together=pick([3,4,5,6,8]);
-    const done=days_together*(1/da+1/db);const left=fmt(1-done);const rem_b=fmt(left*db);
-    const w1=fmt(rem_b+2),w2=fmt(rem_b-2),w3=fmt(rem_b+3);
-    return{text:`<strong>${A}</strong> (${da} days) and <strong>${B}</strong> (${db} days) work together for <strong>${days_together} days</strong>. Then ${A} leaves. How many more days for ${B} to finish?`,
-    opts:shuffle([rem_b,w1,w2,w3]),correct:rem_b,
-    solution:`Work done in ${days_together} days = ${days_together}×(1/${da}+1/${db})=${fmt(done)}. Remaining=${fmt(left)}. ${B} takes ${fmt(left)}×${db}=<strong>${rem_b} days</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const men=pick([10,12,15,20,24,30]);const days=pick([10,12,15,18,20]);const hrs=8;
-    const new_hrs=pick([6,9,10,12]);const new_days=pick([8,10,12,15]);
-    const total=men*days*hrs;const new_men=fmt(total/(new_hrs*new_days));
-    const w1=fmt(new_men+2),w2=fmt(new_men-2),w3=fmt(new_men+4);
-    return{text:`<strong>${men} men</strong> working <strong>${hrs} hrs/day</strong> complete a work in <strong>${days} days</strong>. How many men working <strong>${new_hrs} hrs/day</strong> finish same in <strong>${new_days} days</strong>?`,
-    opts:shuffle([new_men,w1,w2,w3]),correct:new_men,
-    solution:`Total man-hrs = ${men}×${hrs}×${days}=${total}. New men = ${total}/(${new_hrs}×${new_days}) = <strong>${new_men}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const fill_a=pick([10,12,15,18,20]);const fill_b=pick([12,15,18,20,24]);const empty_c=pick([6,8,10,12,15]);
-    const net=fmt(1/fill_a+1/fill_b-1/empty_c);const time=net>0?fmt(1/net):null;
-    const display=net>0?`<strong>${time} minutes</strong>`:'<strong>Never fills</strong>';
-    const w1=net>0?fmt(time+5):0;const w2=net>0?fmt(time-5):0;
-    return{text:`Pipe A fills a tank in <strong>${fill_a} min</strong>, Pipe B in <strong>${fill_b} min</strong>, Pipe C empties in <strong>${empty_c} min</strong>. All opened together — time to fill?`,
-    opts:net>0?shuffle([time,w1,w2,fmt(time+10)]):['Tank never fills','100 min','50 min','200 min'],
-    correct:net>0?time:'Tank never fills',
-    solution:`Net rate = 1/${fill_a}+1/${fill_b}−1/${empty_c} = ${fmt(net)}. Time = ${display}`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B,C]=threeNames();const da=pick([6,8,10,12,15]);const db=pick([10,12,15,18,20]);
-    const dc=da*db/(da+db)*pick([2,3]);// C takes more time
-    const together3=fmt(1/(1/da+1/db+1/dc));
-    const w1=fmt(together3+1),w2=fmt(together3-1),w3=fmt(together3+2);
-    return{text:`<strong>${A}</strong> takes <strong>${da} days</strong>, <strong>${B}</strong> takes <strong>${db} days</strong>, <strong>${C}</strong> takes <strong>${fmt(dc)} days</strong> alone. All three together, time taken?`,
-    opts:shuffle([together3,w1,w2,w3]),correct:together3,
-    solution:`Rate = 1/${da}+1/${db}+1/${fmt(dc)} = ${fmt(1/da+1/db+1/dc)}. Time = <strong>${together3} days</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const da=pick([10,12,15,20,24,30]);const db=pick([12,15,18,20,24]);
-    return{text:`<strong>Data Sufficiency:</strong> In how many days can <strong>${A}</strong> alone finish work?<br><strong>I:</strong> ${A} and ${B} together finish in ${fmt(da*db/(da+db))} days.<br><strong>II:</strong> ${B} alone takes ${db} days.`,
+    return{text:`<strong>Data Sufficiency:</strong> How many days can <strong>${A}</strong> alone finish?<br><strong>I:</strong> ${A} & ${B} together finish in ${fmt(da*db/(da+db))} days.<br><strong>II:</strong> ${B} alone takes ${db} days.`,
     opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`From I+II: 1/${da} = 1/${fmt(da*db/(da+db))} − 1/${db}. ${A} takes <strong>${da} days</strong>. Both statements needed.`,type:'Data Sufficiency'}
+    solution:`1/${da}=1/${fmt(da*db/(da+db))}-1/${db}. ${A}=<strong>${da} days</strong>. Both needed.`,type:'Data Sufficiency'}
   },
   ()=>{
-    const[A,B]=twoNames();const eff_ratio=pick([2,3,4,5]);
-    const db=pick([12,15,18,20,24,30]);const da=fmt(db/eff_ratio);
-    const together=fmt(da*db/(da+db));
-    const w1=fmt(together+2),w2=fmt(together-1),w3=fmt(da);
-    return{text:`<strong>${A}</strong> is <strong>${eff_ratio} times</strong> as efficient as <strong>${B}</strong>. ${B} alone takes <strong>${db} days</strong>. How long do they take together?`,
-    opts:shuffle([together,w1,w2,w3]),correct:together,
-    solution:`${A} takes ${da} days. Together = ${da}×${db}/(${da}+${db}) = <strong>${together} days</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const da=pick([10,12,15,18,20]);const db=pick([12,15,18,20,24]);
-    const together=fmt(da*db/(da+db));
-    return{text:`<strong>Quantity Comparison:</strong><br>Q1: Days for <strong>${A}</strong> (${da} days alone) and <strong>${B}</strong> (${db} days alone) together<br>Q2: Half of <strong>${A}'s</strong> alone time = ${da/2}`,
+    const[A,B]=twoNames();const da=pick([10,12,15,18,20,24]);const db=pick([12,15,18,20,24,30]);
+    const tog=fmt(da*db/(da+db));
+    return{text:`<strong>Quantity Comparison:</strong><br>Q1: Together ${A} (${da}d) and ${B} (${db}d)<br>Q2: Half of ${A}'s time = ${da/2}`,
     opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
-    correct:together>da/2?'Q1 > Q2':'Q1 < Q2',
-    solution:`Q1=${together}, Q2=${da/2}. <strong>${together>da/2?'Q1 > Q2':'Q1 < Q2'}</strong>`,type:'Qty Comparison'}
+    correct:parseFloat(tog)>da/2?'Q1 > Q2':'Q1 < Q2',
+    solution:`Q1=${tog}, Q2=${da/2}. <strong>${parseFloat(tog)>da/2?'Q1 > Q2':'Q1 < Q2'}</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const da=pick([8,10,12,15]);const db=pick([10,12,15,18]);
-    const altDays=2;// They alternate daily
-    // A does 1/da, B does 1/db per day alternately
-    const per2days=1/da+1/db;const full_cycles=Math.floor(1/per2days);
-    const rem=1-full_cycles*per2days;const extra=rem<1/da?fmt(rem*da):fmt(altDays+rem*db);
-    const total=fmt(full_cycles*2+parseFloat(extra));
-    const w1=fmt(total+1),w2=fmt(total-1),w3=fmt(total+0.5);
-    return{text:`<strong>${A}</strong> (${da} days) and <strong>${B}</strong> (${db} days) work on alternate days starting with ${A}. Total days to finish?`,
-    opts:shuffle([total,w1,w2,w3]),correct:total,
-    solution:`Per 2-day cycle: ${fmt(per2days)} work done. ${full_cycles} full cycles = ${fmt(full_cycles*per2days)}. Remaining: ${fmt(rem)}. Total ≈ <strong>${total} days</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const work=rnd(WORKS);const m1=pick([10,12,15,20]);const d1=pick([20,24,30,36]);
-    const m2=m1+pick([2,4,5]);const d2=fmt(m1*d1/m2);
-    const w1=fmt(d2+2),w2=fmt(d2-2),w3=fmt(d2+4);
-    return{text:`<strong>${m1} workers</strong> build a <strong>${work}</strong> in <strong>${d1} days</strong>. How many days will <strong>${m2} workers</strong> take for the same work?`,
+    const m1=pick([10,12,15,16,18,20]);const d1=pick([15,18,20,24,25,30]);
+    const m2=m1+pick([2,4,5,6]);const d2=fmt(m1*d1/m2);
+    const w1=fmt(parseFloat(d2)+2),w2=fmt(parseFloat(d2)-2),w3=fmt(parseFloat(d2)+4);
+    return{text:`<strong>${m1} workers</strong> complete a task in <strong>${d1} days</strong>. How many days for <strong>${m2} workers</strong>?`,
     opts:shuffle([d2,w1,w2,w3]),correct:d2,
-    solution:`M₁D₁ = M₂D₂ → ${m1}×${d1} = ${m2}×D₂ → D₂ = <strong>${d2} days</strong>`,type:'MCQ'}
+    solution:`M₁D₁=M₂D₂ → ${m1}×${d1}=${m2}×D₂ → D₂=<strong>${d2} days</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B,C]=threeNames();const da=pick([6,8,10,12,15]);const db=pick([8,10,12,15,18]);const dc=pick([10,12,15,18,20]);
+    const tog=fmt(1/(1/da+1/db+1/dc));
+    const w1=fmt(parseFloat(tog)+1),w2=fmt(parseFloat(tog)-1),w3=fmt(parseFloat(tog)+2);
+    return{text:`<strong>${A}</strong>(${da}d), <strong>${B}</strong>(${db}d), <strong>${C}</strong>(${dc}d). All three together?`,
+    opts:shuffle([tog,w1,w2,w3]),correct:tog,
+    solution:`Rate=1/${da}+1/${db}+1/${dc}=${fmt(1/da+1/db+1/dc)}. Days=<strong>${tog}</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const db=pick([10,12,15,18,20,24,25,30]);
+    const da=fmt(db*(1-pv(pe)/100));// A is pe% more efficient than B
+    const tog=fmt(parseFloat(da)*db/(parseFloat(da)+db));
+    const w1=fmt(parseFloat(tog)+1),w2=fmt(parseFloat(tog)-1),w3=da;
+    return{text:`<strong>${A}</strong> is <strong>${pv(pe)}% (${pf(pe)})</strong> more efficient than <strong>${B}</strong>. ${B} takes <strong>${db} days</strong>. Together?`,
+    opts:shuffle([tog,w1,w2,w3]),correct:tog,
+    solution:`${A} is faster: ${A} takes ${da} days. Together=${da}×${db}/(${da}+${db})=<strong>${tog} days</strong>`,type:'MCQ'}
   },
 ]},
 
 // ─────────────────── TSD ───────────────────
 "TSD / Boats & Trains":{icon:"🚂",color:"#06b6d4",templates:[
   ()=>{
-    const speed=pick([40,48,54,60,66,72,80,90]);const time=pick([2,3,4,5,6]);
-    const dist=speed*time;const w1=dist+speed,w2=dist-time*10,w3=dist+time*speed/2;
-    return{text:`A vehicle travels at <strong>${speed} km/h</strong> for <strong>${time} hours</strong>. Find distance covered.`,
-    opts:shuffle([dist,w1,w2,w3]),correct:dist,
-    solution:`Distance = Speed × Time = ${speed} × ${time} = <strong>${dist} km</strong>`,type:'MCQ'}
+    const s=pick([30,36,40,45,48,54,60,66,72,80,90,100]);const t=pick([2,3,4,5,6]);
+    const d=s*t;const w1=d+s,w2=d-t*10,w3=d+t*s/2;
+    return{text:`A vehicle travels at <strong>${s} km/h</strong> for <strong>${t} hours</strong>. Distance?`,
+    opts:shuffle([d,w1,w2,w3]),correct:d,
+    solution:`Distance = ${s}×${t} = <strong>${d} km</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const dist=pick([120,150,180,200,240,270,300]);
-    const s1=pick([40,45,50,54,60]);const s2=pick([30,36,40,45,50]);
-    const time=fmt(dist/(s1+s2));const w1=fmt(time+0.5),w2=fmt(time-0.5),w3=fmt(dist/(s1-s2));
-    return{text:`<strong>${A}</strong> and <strong>${B}</strong> start from two ends <strong>${dist} km</strong> apart, walking towards each other at <strong>${s1} km/h</strong> and <strong>${s2} km/h</strong>. When do they meet?`,
+    const[A,B]=twoNames();const d=pick([90,120,150,180,200,240,270,300,360]);
+    const s1=pick([30,36,40,45,50,54,60]);const s2=pick([24,30,36,40,45,50]);
+    const time=fmt(d/(s1+s2));const w1=fmt(parseFloat(time)+0.5),w2=fmt(parseFloat(time)-0.5),w3=fmt(d/(s1-s2||1));
+    return{text:`<strong>${A}</strong> and <strong>${B}</strong> walk towards each other from <strong>${d} km</strong> apart at <strong>${s1} km/h</strong> and <strong>${s2} km/h</strong>. When do they meet?`,
     opts:shuffle([`${time} hrs`,`${w1} hrs`,`${w2} hrs`,`${w3} hrs`]),correct:`${time} hrs`,
-    solution:`Relative speed = ${s1+s2} km/h. Time = ${dist}/${s1+s2} = <strong>${time} hrs</strong>`,type:'MCQ'}
+    solution:`Relative speed=${s1+s2} km/h. Time=${d}/${s1+s2}=<strong>${time} hrs</strong>`,type:'MCQ'}
   },
   ()=>{
-    const len=pick([100,120,150,180,200,240]);const platform=pick([100,150,200,240,300]);
-    const speed_kmh=pick([36,45,54,60,72,90]);const speed_ms=speed_kmh*5/18;
-    const time_pole=fmt(len/speed_ms);const time_platform=fmt((len+platform)/speed_ms);
-    const w1=fmt(time_platform+2),w2=fmt(time_platform-2),w3=fmt(platform/speed_ms);
-    return{text:`A <strong>${len}m</strong> train at <strong>${speed_kmh} km/h</strong> crosses a <strong>${platform}m</strong> platform. Time taken?`,
-    opts:shuffle([time_platform,w1,w2,w3]),correct:time_platform,
-    solution:`Speed=${speed_ms} m/s. Distance=${len+platform}m. Time=(${len+platform})/${speed_ms}=<strong>${time_platform} sec</strong>`,type:'MCQ'}
+    const len=pick([100,120,150,180,200,240,250]);const plat=pick([100,150,200,240,300,350]);
+    const s_kmh=pick([36,45,54,60,66,72,80,90]);const s_ms=s_kmh*5/18;
+    const time=fmt((len+plat)/s_ms);const w1=fmt(parseFloat(time)+2),w2=fmt(parseFloat(time)-2),w3=fmt(len/s_ms);
+    return{text:`A <strong>${len}m</strong> train at <strong>${s_kmh} km/h</strong> crosses a <strong>${plat}m</strong> platform. Time?`,
+    opts:shuffle([time,w1,w2,w3]),correct:time,
+    solution:`Speed=${fmt(s_ms)} m/s. Distance=${len+plat}m. Time=${len+plat}/${fmt(s_ms)}=<strong>${time} sec</strong>`,type:'MCQ'}
   },
   ()=>{
-    const l1=pick([100,120,150,180,200]);const l2=pick([100,120,150,180,200]);
+    const l1=pick([100,120,150,180,200,240]);const l2=pick([100,120,150,180,200]);
     const s1=pick([54,60,66,72,80,90]);const s2=pick([36,40,45,54,60,66]);
-    const same_dir=fmt((l1+l2)/((s1-s2)*5/18));
-    const opp_dir=fmt((l1+l2)/((s1+s2)*5/18));
-    const w1=fmt(same_dir+5),w2=fmt(opp_dir+2),w3=fmt(same_dir-5);
-    return{text:`Two trains <strong>${l1}m</strong> and <strong>${l2}m</strong> long move in <strong>opposite directions</strong> at <strong>${s1} km/h</strong> and <strong>${s2} km/h</strong>. Time to cross?`,
-    opts:shuffle([opp_dir,w1,w2,w3]),correct:opp_dir,
-    solution:`Relative speed=(${s1+s2})km/h=${fmt((s1+s2)*5/18)}m/s. Distance=${l1+l2}m. Time=<strong>${opp_dir} sec</strong>`,type:'MCQ'}
+    const opp=fmt((l1+l2)/((s1+s2)*5/18));const same=fmt((l1+l2)/((s1-s2)*5/18));
+    const w1=fmt(parseFloat(opp)+2),w2=fmt(parseFloat(same)+5),w3=fmt(parseFloat(opp)-2);
+    return{text:`Trains <strong>${l1}m</strong> and <strong>${l2}m</strong>, moving <strong>opposite directions</strong> at <strong>${s1}</strong> and <strong>${s2} km/h</strong>. Crossing time?`,
+    opts:shuffle([opp,w1,w2,w3]),correct:opp,
+    solution:`Rel speed=${s1+s2}km/h=${fmt((s1+s2)*5/18)}m/s. Dist=${l1+l2}m. Time=<strong>${opp} sec</strong>`,type:'MCQ'}
   },
   ()=>{
     const boat=pick([8,10,12,14,15,16,18,20]);const stream=pick([2,3,4,5,6]);
-    const upstream=boat-stream;const downstream=boat+stream;
-    const dist=pick([30,40,48,50,60,72,80]);
-    const t_up=fmt(dist/upstream);const t_down=fmt(dist/downstream);
-    const total=fmt(t_up+t_down);const w1=fmt(total+1),w2=fmt(total-0.5),w3=fmt(2*dist/boat);
-    return{text:`Boat speed = <strong>${boat} km/h</strong>, stream = <strong>${stream} km/h</strong>. Time for <strong>${dist} km</strong> upstream + <strong>${dist} km</strong> downstream?`,
-    opts:shuffle([total,w1,w2,w3]),correct:total,
-    solution:`Upstream=${upstream} km/h, Downstream=${downstream} km/h. Time up=${t_up}h, down=${t_down}h. Total=<strong>${total} hrs</strong>`,type:'MCQ'}
+    const up=boat-stream;const dn=boat+stream;const d=pick([30,40,48,50,60,72,80]);
+    const t=fmt(d/up+d/dn);const w1=fmt(parseFloat(t)+1),w2=fmt(parseFloat(t)-0.5),w3=fmt(2*d/boat);
+    return{text:`Boat: <strong>${boat} km/h</strong>, stream: <strong>${stream} km/h</strong>. Time for <strong>${d} km</strong> upstream + <strong>${d} km</strong> downstream?`,
+    opts:shuffle([t,w1,w2,w3]),correct:t,
+    solution:`Up=${up}km/h, Down=${dn}km/h. Total=${d}/${up}+${d}/${dn}=<strong>${t} hrs</strong>`,type:'MCQ'}
   },
   ()=>{
-    const u=pick([5,6,8,10,12]);const d=pick([10,12,14,16,18,20]);
+    const u=pick([4,5,6,7,8,9,10,12]);const d=u+pick([4,6,8,10,12,14]);
     const boat=fmt((u+d)/2);const stream=fmt((d-u)/2);
-    const w1=fmt(boat+1),w2=fmt(boat-1),w3=stream;
-    return{text:`Upstream speed = <strong>${u} km/h</strong>, Downstream = <strong>${d} km/h</strong>. Find speed of boat in still water.`,
+    const w1=fmt(parseFloat(boat)+1),w2=fmt(parseFloat(boat)-1),w3=stream;
+    return{text:`Upstream = <strong>${u} km/h</strong>, Downstream = <strong>${d} km/h</strong>. Still water speed?`,
     opts:shuffle([boat,w1,w2,w3]),correct:boat,
-    solution:`Boat speed = (upstream+downstream)/2 = (${u}+${d})/2 = <strong>${boat} km/h</strong>`,type:'MCQ'}
+    solution:`Still water = (${u}+${d})/2 = <strong>${boat} km/h</strong>`,type:'MCQ'}
   },
   ()=>{
-    const d1=pick([120,150,180,200]);const d2=pick([80,100,120,150]);
-    const s=pick([40,45,50,60]);const t_avg=fmt((d1+d2)/(pick([2,3])*s+(d2/s)));
-    const avg=fmt((d1+d2)/(d1/s+d2/(s*0.8)));
-    const w1=fmt(avg+2),w2=fmt(avg-2),w3=fmt(s*0.9);
-    return{text:`A person travels <strong>${d1} km</strong> at <strong>${s} km/h</strong> and <strong>${d2} km</strong> at <strong>${fmt(s*0.8)} km/h</strong>. Find average speed.`,
+    const len=pick([100,120,150,180,200,240,250]);const t_pole=pick([10,12,15,16,18,20,24,25]);
+    const s=fmt(len/t_pole);const plat=pick([100,150,200,240,300]);const t_plat=fmt((len+plat)/parseFloat(s));
+    const w1=fmt(parseFloat(t_plat)+3),w2=fmt(parseFloat(t_plat)-3),w3=fmt(plat/parseFloat(s));
+    return{text:`Train crosses a pole in <strong>${t_pole} sec</strong>. Length = <strong>${len}m</strong>. Time to cross <strong>${plat}m</strong> bridge?`,
+    opts:shuffle([t_plat,w1,w2,w3]),correct:t_plat,
+    solution:`Speed=${fmt(s)}m/s. Bridge time=(${len}+${plat})/${fmt(s)}=<strong>${t_plat} sec</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const d1=pick([100,120,150,180,200]);const d2=pick([80,100,120,150,200]);
+    const s=pick([40,45,50,54,60,72]);const slow=fmt(s*0.8);
+    const avg=fmt((d1+d2)/(d1/s+d2/parseFloat(slow)));
+    const w1=fmt(parseFloat(avg)+2),w2=fmt(parseFloat(avg)-2),w3=fmt((s+parseFloat(slow))/2);
+    return{text:`Travels <strong>${d1} km</strong> at <strong>${s} km/h</strong> and <strong>${d2} km</strong> at <strong>${slow} km/h</strong>. Average speed?`,
     opts:shuffle([avg,w1,w2,w3]),correct:avg,
-    solution:`Avg speed = Total dist/Total time = ${d1+d2}/(${d1}/${s}+${d2}/${fmt(s*0.8)}) = <strong>${avg} km/h</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const speed=pick([60,66,72,80,90]);const len=pick([100,120,150,180,200]);
-    return{text:`<strong>Data Sufficiency:</strong> How long does train take to cross a platform?<br><strong>I:</strong> Train length = ${len}m, speed = ${speed} km/h.<br><strong>II:</strong> Platform is 200m long.`,
-    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`Need both train length AND platform length. Time=(${len}+200)/${fmt(speed*5/18)}=<strong>${fmt((len+200)/(speed*5/18))} sec</strong>. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+    solution:`Avg=${d1+d2}/(${d1}/${s}+${d2}/${slow})=<strong>${avg} km/h</strong>`,type:'MCQ'}
   },
   ()=>{
     const boat=pick([10,12,14,15,16,18,20]);const stream=pick([2,3,4,5]);
-    const dist_up=pick([30,40,50,60]);const dist_down=dist_up+pick([10,20,30]);
-    const t=fmt(dist_up/(boat-stream)+dist_down/(boat+stream));
-    const w1=fmt(t+1),w2=fmt(t-0.5),w3=fmt((dist_up+dist_down)/boat);
-    return{text:`<strong>Qty Comparison:</strong><br>Q1: Time for boat (still water ${boat}km/h, stream ${stream}km/h) — ${dist_up}km upstream + ${dist_down}km downstream<br>Q2: Time for same distance ${dist_up+dist_down}km in still water`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
-    correct:'Q1 > Q2',
-    solution:`Q1=${t}h, Q2=${fmt((dist_up+dist_down)/boat)}h. Upstream takes more time than still water, so Q1>Q2. <strong>Q1 > Q2</strong>`,type:'Qty Comparison'}
+    const d_up=pick([30,40,50,60]);const d_dn=d_up+pick([10,20,30]);
+    const t=fmt(d_up/(boat-stream)+d_dn/(boat+stream));
+    const w1=fmt(parseFloat(t)+1),w2=fmt(parseFloat(t)-0.5),w3=fmt((d_up+d_dn)/boat);
+    return{text:`<strong>Qty Comparison:</strong> Boat ${boat}km/h still, stream ${stream}km/h.<br>Q1: ${d_up}km upstream + ${d_dn}km downstream<br>Q2: ${d_up+d_dn}km in still water`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 > Q2',
+    solution:`Q1=${t}h > Q2=${w3}h. Upstream slower. <strong>Q1 > Q2</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const len=pick([150,180,200,240,250]);const time_pole=pick([10,12,15,18,20]);
-    const speed_ms=fmt(len/time_pole);const speed_kmh=fmt(speed_ms*18/5);
-    const platform=pick([150,200,250,300]);const time_plat=fmt((len+platform)/speed_ms);
-    const w1=fmt(time_plat+3),w2=fmt(time_plat-3),w3=fmt(platform/speed_ms);
-    return{text:`A train crosses a pole in <strong>${time_pole} sec</strong>. Its length is <strong>${len}m</strong>. Time to cross a <strong>${platform}m</strong> bridge?`,
-    opts:shuffle([time_plat,w1,w2,w3]),correct:time_plat,
-    solution:`Speed=${speed_ms} m/s. To cross bridge: (${len}+${platform})/${speed_ms}=<strong>${time_plat} sec</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const s=pick([54,60,66,72,80,90]);const len=pick([150,180,200,240,250]);
+    return{text:`<strong>Data Sufficiency:</strong> Train crossing a platform — time taken?<br><strong>I:</strong> Train = ${len}m, speed = ${s} km/h.<br><strong>II:</strong> Platform is 200m long.`,
+    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
+    solution:`Need train length AND platform length. Time=(${len}+200)/${fmt(s*5/18)}=<strong>${fmt((len+200)/(s*5/18))} sec</strong>. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
 ]},
 
 // ─────────────────── MIXTURES ───────────────────
 "Mixtures":{icon:"🧪",color:"#84cc16",templates:[
   ()=>{
-    const total=pick([40,50,60,80,100]);const milk_r=pick([2,3,4,5]);const water_r=pick([1,2,3]);
-    const milk=fmt(total*milk_r/(milk_r+water_r));const water=fmt(total*water_r/(milk_r+water_r));
-    const new_ratio_w=milk_r;const new_ratio_m=water_r;// want to reverse
-    const water_needed=fmt(milk*new_ratio_w/new_ratio_m-water);
-    const w1=fmt(water_needed+5),w2=fmt(water_needed-5),w3=fmt(water_needed*2);
-    return{text:`In <strong>${total} litres</strong> of mixture, milk:water = <strong>${milk_r}:${water_r}</strong>. How much water to add to make ratio <strong>${water_r}:${milk_r}</strong>?`,
-    opts:shuffle([water_needed,w1,w2,w3]),correct:water_needed,
-    solution:`Milk=${milk}L, Water=${water}L. New ratio wants water:milk=${water_r}:${milk_r}. Water needed=(milk×${water_r}/${milk_r})−existing water=(${fmt(milk*water_r/milk_r)}−${water})=<strong>${water_needed}L</strong>`,type:'MCQ'}
+    // Ensure mr > wr strictly so ratio inversion always requires adding water
+    const mr=pick([3,4,5,6]);const wr=pick([1,2]);// always mr>wr
+    const tot=(mr+wr)*pick([8,10,12,16,20]);
+    const milk=tot*mr/(mr+wr);const water=tot*wr/(mr+wr);
+    // Target: milk:water = 1:1 (add water until water=milk)
+    const water_needed=milk-water;// always positive since mr>wr
+    const w1=fmt(water_needed+10),w2=fmt(water_needed-5),w3=fmt(water_needed*2);
+    return{text:`<strong>${tot}L</strong> mixture with milk:water=<strong>${mr}:${wr}</strong>. How much water to add to make it <strong>1:1</strong>?`,
+    opts:shuffle([fmt(water_needed),w1,w2,w3]),correct:fmt(water_needed),
+    solution:`Milk=${milk}L (fixed). For 1:1, water must also=${milk}L. Currently ${water}L. Add=${milk}-${water}=<strong>${fmt(water_needed)}L</strong>`,type:'MCQ'}
   },
   ()=>{
-    const vessel=pick([40,50,60,80,100]);const remove=pick([5,8,10,12,16,20]);const times=pick([2,3,4]);
+    const vessel=pick([40,50,60,80,100,120]);const remove=pick([5,8,10,12,15,16,20]);const times=pick([2,3,4]);
     const remain=fmt(vessel*Math.pow(1-remove/vessel,times));
-    const w1=fmt(remain+5),w2=fmt(remain-5),w3=fmt(vessel-remove*times);
-    return{text:`A vessel has <strong>${vessel}L</strong> of pure milk. <strong>${remove}L</strong> is removed and replaced with water — done <strong>${times} times</strong>. Milk remaining?`,
+    const w1=fmt(parseFloat(remain)+5),w2=fmt(parseFloat(remain)-5),w3=fmt(vessel-remove*times);
+    return{text:`<strong>${vessel}L</strong> pure milk. <strong>${remove}L</strong> removed & replaced with water — <strong>${times} times</strong>. Milk remaining?`,
     opts:shuffle([remain,w1,w2,w3]),correct:remain,
-    solution:`Milk = ${vessel}×(1−${remove}/${vessel})^${times} = ${vessel}×${fmt(Math.pow(1-remove/vessel,times))} = <strong>${remain}L</strong>`,type:'MCQ'}
+    solution:`Milk=${vessel}×(1−${remove}/${vessel})^${times}=${vessel}×${fmt(Math.pow(1-remove/vessel,times))}=<strong>${remain}L</strong>`,type:'MCQ'}
   },
   ()=>{
-    const c1=pick([10,12,15,16,20]);const c2=pick([18,20,24,25,30]);const target=rndN(c1+1,c2-1);
-    const ratio_w=target-c1;const ratio_c=c2-target;const g=gcd(ratio_w,ratio_c);
-    const w1=`${ratio_c/g}:${ratio_w/g}`;const w2=`${ratio_w/g+1}:${ratio_c/g}`;const w3=`${ratio_w/g}:${ratio_c/g+1}`;
-    return{text:`Two solutions have concentrations <strong>${c1}%</strong> and <strong>${c2}%</strong>. In what ratio mix to get <strong>${target}%</strong> concentration?`,
-    opts:shuffle([`${ratio_c/g}:${ratio_w/g}`,w1,w2,w3]),correct:`${ratio_c/g}:${ratio_w/g}`,
-    solution:`By alligation: (${c2}−${target}):(${target}−${c1}) = ${c2-target}:${target-c1} = <strong>${ratio_c/g}:${ratio_w/g}</strong>`,type:'MCQ'}
+    // Alligation — mix concentrations to get target
+    const c1=pick([10,15,20,25,30]);const c2=c1+pick([20,25,30,40,50]);const tgt=rndN(c1+5,c2-5);
+    const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+    return{text:`Mix solutions of <strong>${c1}%</strong> and <strong>${c2}%</strong> to get <strong>${tgt}%</strong>. Ratio?`,
+    opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+    correct:`${rA/g}:${rB/g}`,
+    solution:`Alligation: (${c2}−${tgt}):(${tgt}−${c1})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const total=pick([60,80,100,120]);
-    const gold_a=pick([3,4,5]);const silver_a=pick([1,2,3]);
-    const gold_b=pick([5,6,7]);const silver_b=pick([2,3,4,5]);
-    const frac_a=gold_a/(gold_a+silver_a);const frac_b=gold_b/(gold_b+silver_b);
-    const target=pick([50,55,60,62,65]);const target_f=target/100;
-    const ratio_b=target_f-frac_a;const ratio_a=frac_b-target_f;
-    const g=gcd(Math.round(ratio_a*100),Math.round(ratio_b*100));
-    const rA=Math.round(ratio_a*100/g);const rB=Math.round(ratio_b*100/g);
-    return{text:`Alloy A has gold:silver = <strong>${gold_a}:${silver_a}</strong>. Alloy B = <strong>${gold_b}:${silver_b}</strong>. Mix to get <strong>${target}%</strong> gold. Ratio A:B?`,
-    opts:shuffle([`${rA}:${rB}`,`${rB}:${rA}`,`${rA+1}:${rB}`,`${rA}:${rB+1}`]),correct:`${rA}:${rB}`,
-    solution:`Gold in A=${fmt(frac_a*100)}%, B=${fmt(frac_b*100)}%, target=${target}%. Alligation: A:B=${fmt(frac_b-target_f)}:${fmt(target_f-frac_a)} = <strong>${rA}:${rB}</strong>`,type:'MCQ'}
+    const m1=pick([20,25,30,40,50]);const m2=pick([30,40,50,60,80]);
+    const c1=pick([20,25,30,40]);const c2=c1+pick([20,25,30]);
+    const mix=fmt((m1*c1+m2*c2)/(m1+m2));
+    const w1=fmt(parseFloat(mix)+5),w2=fmt(parseFloat(mix)-5),w3=fmt((c1+c2)/2);
+    return{text:`<strong>${m1}L</strong> of <strong>${c1}%</strong> acid + <strong>${m2}L</strong> of <strong>${c2}%</strong> acid. Mixture concentration?`,
+    opts:shuffle([`${mix}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${mix}%`,
+    solution:`Acid=(${m1}×${c1}+${m2}×${c2})/${m1+m2}=${fmt(m1*c1+m2*c2)}/${m1+m2}=<strong>${mix}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const milk=pick([20,24,30,36,40]);const water=pick([4,6,8,10,12]);
-    const add_milk=pick([4,5,6,8,10]);
-    const new_milk=milk+add_milk;const new_total=milk+water+add_milk;
-    const new_pct=fmt(new_milk/new_total*100);
-    const w1=fmt(new_pct+5),w2=fmt(new_pct-5),w3=fmt(milk/(milk+water)*100);
-    return{text:`Mixture has <strong>${milk}L</strong> milk and <strong>${water}L</strong> water. <strong>${add_milk}L</strong> pure milk is added. New percentage of milk?`,
-    opts:shuffle([`${new_pct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${new_pct}%`,
-    solution:`New milk=${new_milk}L, Total=${new_total}L. %=(${new_milk}/${new_total})×100=<strong>${new_pct}%</strong>`,type:'MCQ'}
+    const pe=pickPct(PCT_SMALL);const vessel=cleanBase(pe,40,200);
+    const remove=Math.round(applyPct(vessel,pe));
+    const remain=fmt(vessel-remove);const remain_pct=pv(pe)===0?100:fmt(100-pv(pe));
+    const w1=fmt(parseFloat(remain)+5),w2=fmt(parseFloat(remain)-5),w3=vessel-Math.round(applyPct(vessel,pe))*2;
+    return{text:`<strong>${vessel}L</strong> pure juice. <strong>${pv(pe)}% (${pf(pe)})</strong> = <strong>${remove}L</strong> replaced by water. % of juice now?`,
+    opts:shuffle([`${100-pv(pe)}%`,`${pv(pe)}%`,`${fmt(100-pv(pe)-2)}%`,`${fmt(100-pv(pe)+2)}%`]),
+    correct:`${100-pv(pe)}%`,
+    solution:`Removed=${remove}L (${pf(pe)}). Juice remaining=${remain}L. %=(${remain}/${vessel})×100=<strong>${100-pv(pe)}%</strong>`,type:'MCQ'}
   },
   ()=>{
-    const x=pick([20,25,30,40,50]);const y=pick([40,50,60,70,80]);
-    // mix x and y litres of two solutions with concentrations c1 and c2
-    const c1=pick([10,15,20,25,30]);const c2=pick([40,45,50,55,60]);
-    const mixed=fmt((x*c1+y*c2)/(x+y));
-    const w1=fmt(mixed+5),w2=fmt(mixed-5),w3=fmt((c1+c2)/2);
-    return{text:`<strong>${x}L</strong> of <strong>${c1}%</strong> acid solution is mixed with <strong>${y}L</strong> of <strong>${c2}%</strong> acid. Find % of acid in mixture.`,
-    opts:shuffle([`${mixed}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${mixed}%`,
-    solution:`Acid=(${x}×${c1}+${y}×${c2})/${x+y}=${fmt(x*c1+y*c2)}/${x+y}=<strong>${mixed}%</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const vessel=pick([60,80,100,120]);const remove=pick([10,15,20]);
-    const times=2;const remain_pct=fmt(Math.pow(1-remove/vessel,times)*100);
-    const w1=fmt(remain_pct+5),w2=fmt(remain_pct-5),w3=fmt(100-remove*times*100/vessel);
-    return{text:`<strong>${vessel}L</strong> pure juice. <strong>${remove}L</strong> replaced by water twice. % of juice remaining?`,
+    const vessel=pick([60,80,100,120,150]);const remove=pick([10,12,15,16,20,24,25]);const times=2;
+    const remain_pct=fmt(Math.pow(1-remove/vessel,times)*100);
+    const w1=fmt(parseFloat(remain_pct)+5),w2=fmt(parseFloat(remain_pct)-5),w3=fmt(100-remove*times*100/vessel);
+    return{text:`<strong>${vessel}L</strong> pure juice. <strong>${remove}L</strong> replaced by water <strong>twice</strong>. % juice remaining?`,
     opts:shuffle([`${remain_pct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${remain_pct}%`,
-    solution:`%=100×(1−${remove}/${vessel})^2=100×${fmt(Math.pow(1-remove/vessel,2))}=<strong>${remain_pct}%</strong>`,type:'MCQ'}
+    solution:`%=100×(1−${remove}/${vessel})²=100×${fmt(Math.pow(1-remove/vessel,2))}=<strong>${remain_pct}%</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const s_cheap=pick([20,25,30,40,50]);const s_exp=s_cheap+pick([20,30,40,50,60]);
+    const tgt=rndN(s_cheap+5,s_exp-5);const rA=s_exp-tgt;const rB=tgt-s_cheap;const g=gcd(rA,rB);
+    return{text:`<strong>Data Sufficiency:</strong> Ratio to mix items costing Rs.${s_cheap} & Rs.${s_exp} for Rs.${tgt}/unit?<br><strong>I:</strong> Cheaper costs Rs.${s_cheap}. &nbsp;<strong>II:</strong> Expensive costs Rs.${s_exp}.`,
+    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
+    solution:`Alligation needs both costs. Ratio=${rA/g}:${rB/g}. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
   ()=>{
     const m1=pick([20,30,40,50]);const m2=pick([30,40,50,60]);
-    const c1=pick([30,40,50]);const c2=c1+pick([10,15,20]);
-    const mix=fmt((m1*c1+m2*c2)/(m1+m2));
-    return{text:`<strong>Qty Comparison:</strong><br>Q1: Concentration when ${m1}L of ${c1}% and ${m2}L of ${c2}% are mixed<br>Q2: Average of ${c1}% and ${c2}% = ${fmt((c1+c2)/2)}%`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
-    correct:mix>fmt((c1+c2)/2)?'Q1 > Q2':mix<fmt((c1+c2)/2)?'Q1 < Q2':'Q1 = Q2',
-    solution:`Q1=${mix}%, Q2=${fmt((c1+c2)/2)}%. ${m1>m2?'More of lower concentration, Q1 < Q2':'More of higher concentration, Q1 > Q2'}. <strong>${mix>(c1+c2)/2?'Q1 > Q2':mix<(c1+c2)/2?'Q1 < Q2':'Q1 = Q2'}</strong>`,type:'Qty Comparison'}
+    const c1=pick([30,35,40,45,50]);const c2=c1+pick([10,15,20,25]);
+    const mix=fmt((m1*c1+m2*c2)/(m1+m2));const avg=fmt((c1+c2)/2);
+    const rel=parseFloat(mix)>parseFloat(avg)?'Q1 > Q2':parseFloat(mix)<parseFloat(avg)?'Q1 < Q2':'Q1 = Q2';
+    return{text:`<strong>Qty Comparison:</strong><br>Q1: Concentration of ${m1}L@${c1}% + ${m2}L@${c2}%<br>Q2: Simple average = ${avg}%`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
+    solution:`Q1=${mix}%, Q2=${avg}%. ${m2>m1?'More high-concentration → Q1>Q2':'More low-concentration → Q1<Q2'}. <strong>${rel}</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const s_cheap=pick([20,25,30,40]);const s_exp=pick([50,60,70,80,100]);
-    const target=rndN(s_cheap+5,s_exp-5);
-    const ratio_exp=target-s_cheap;const ratio_cheap=s_exp-target;const g=gcd(ratio_exp,ratio_cheap);
-    return{text:`<strong>Data Sufficiency:</strong> In what ratio should items costing Rs.${s_cheap} and Rs.${s_exp} be mixed for target price Rs.${target}?<br><strong>I:</strong> Cheaper item costs Rs.${s_cheap}. <strong>II:</strong> Expensive item costs Rs.${s_exp}.`,
-    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`Need both costs to apply alligation. Ratio = (${s_exp}−${target}):(${target}−${s_cheap})=${ratio_cheap/g}:${ratio_exp/g}. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+    const ga=pick([3,4,5]);const sa=pick([1,2]);const gb=pick([5,6,7]);const sb=pick([2,3,4]);
+    const fA=ga/(ga+sa);const fB=gb/(gb+sb);
+    const tgt_n=pick([5,6,7,8,9,10]);const tgt_d=tgt_n+pick([1,2,3,4]);const tgt=tgt_n/tgt_d;
+    if(tgt>=fA&&tgt<=fB){
+      const rA=fB-tgt;const rB=tgt-fA;const scale=1000;
+      const rAi=Math.round(rA*scale),rBi=Math.round(rB*scale);const g=gcd(rAi,rBi);
+      return{text:`Alloy A: gold:silver=<strong>${ga}:${sa}</strong>. Alloy B: <strong>${gb}:${sb}</strong>. Mix for <strong>${tgt_n}/${tgt_d}</strong> gold fraction. Ratio A:B?`,
+      opts:shuffle([`${rAi/g}:${rBi/g}`,`${rBi/g}:${rAi/g}`,`${rAi/g+1}:${rBi/g}`,`${rAi/g}:${rBi/g+1}`]),
+      correct:`${rAi/g}:${rBi/g}`,
+      solution:`Gold A=${fmt(fA*100)}%, B=${fmt(fB*100)}%, target=${fmt(tgt*100)}%. Alligation:A:B=${rAi/g}:${rBi/g}`,type:'MCQ'}
+    }
+    // fallback
+    return{text:`Mix ${ga*10}L of ${ga/(ga+sa)*100}% solution with ${gb*10}L of ${gb/(gb+sb)*100}% solution. Final gold %?`,
+    opts:[`${fmt((ga*10*fA+gb*10*fB)/(ga*10+gb*10)*100)}%`,`${fmt(fA*100)}%`,`${fmt(fB*100)}%`,`${fmt((fA+fB)/2*100)}%`],
+    correct:`${fmt((ga*10*fA+gb*10*fB)/(ga*10+gb*10)*100)}%`,
+    solution:`Weighted average.`,type:'MCQ'}
   },
   ()=>{
-    const n=pick([3,4,5,6]);const vessel=pick([80,100,120]);const remove=pick([10,15,20]);
-    const milk=fmt(vessel*Math.pow(1-remove/vessel,n));
-    const water=fmt(vessel-milk);const ratio=`${fmt(milk)}:${fmt(water)}`;
-    const w1=`${fmt(milk)+5}:${fmt(water)}`;const w2=`${fmt(milk)}:${fmt(water)+5}`;
-    return{text:`<strong>${vessel}L</strong> milk. <strong>${remove}L</strong> replaced by water <strong>${n} times</strong>. Final milk:water ratio?`,
-    opts:shuffle([ratio,w1,w2,`${fmt(milk-5)}:${fmt(water+5)}`]),correct:ratio,
-    solution:`Milk=${milk}L, Water=${water}L. Ratio=<strong>${ratio}</strong>`,type:'MCQ'}
+    const n=pick([3,4,5]);const vessel=pick([80,100,120,150,200]);const remove=pick([10,15,20,25]);
+    const milk=fmt(vessel*Math.pow(1-remove/vessel,n));const water=fmt(vessel-parseFloat(milk));
+    const g=gcd(Math.round(parseFloat(milk)),Math.round(parseFloat(water)));
+    const mR=Math.round(parseFloat(milk)/g);const wR=Math.round(parseFloat(water)/g);
+    return{text:`<strong>${vessel}L</strong> milk. <strong>${remove}L</strong> replaced by water <strong>${n} times</strong>. Final milk:water?`,
+    opts:shuffle([`${mR}:${wR}`,`${mR+1}:${wR}`,`${mR}:${wR+1}`,`${mR-1}:${wR+1}`]),correct:`${mR}:${wR}`,
+    solution:`Milk≈${milk}L, Water≈${water}L. Ratio≈<strong>${mR}:${wR}</strong>`,type:'MCQ'}
   },
 ]},
 
 // ─────────────────── AGES ───────────────────
 "Problems on Ages":{icon:"👨‍👩‍👧",color:"#f97316",templates:[
   ()=>{
-    const[A,B]=twoNames();const age_a=rndN(20,40);const age_b=rndN(10,age_a-5);
-    const ratio=`${age_a}:${age_b}`;const years=pick([5,6,8,10]);
-    const new_a=age_a+years;const new_b=age_b+years;const new_ratio=`${new_a}:${new_b}`;
-    const w1=new_a+2,w2=new_a-2,w3=new_a+5;
-    return{text:`Present ages of <strong>${A}</strong> and <strong>${B}</strong> are in ratio <strong>${age_a}:${age_b}</strong>. After <strong>${years} years</strong> their ages will be <strong>${new_a}:${new_b}</strong>. Find ${A}'s present age.`,
-    opts:shuffle([age_a,w1,w2,w3]),correct:age_a,
-    solution:`Ratio ${age_a}:${age_b}. ${A}'s present age = <strong>${age_a} years</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const r_a=pick([3,4,5,6,7,8]);const r_b=pick([1,2,3,4,5]);
+    const k=pick([4,5,6,7,8,9,10]);const ageA=r_a*k;const ageB=r_b*k;
+    const yrs=pick([4,5,6,8,10]);const newA=ageA+yrs;const newB=ageB+yrs;
+    const g=gcd(newA,newB);const nrA=newA/g;const nrB=newB/g;
+    const w1=ageA+2,w2=ageA-2,w3=ageA+4;
+    return{text:`Ages of <strong>${A}:${B} = ${r_a}:${r_b}</strong>. After <strong>${yrs} years</strong>, ages = <strong>${nrA}:${nrB}</strong> (same k). ${A}'s present age?`,
+    opts:shuffle([ageA,w1,w2,w3]),correct:ageA,
+    solution:`Present ${A}=${r_a}×${k}=<strong>${ageA} years</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const r_a=pick([3,4,5,6,7]);const r_b=pick([2,3,4,5]);
-    const diff=pick([5,8,10,12,15]);// years from now
-    const new_r_a=r_a+1;const new_r_b=r_b+1;
-    // r_a*x/r_b*x = initial. (r_a*x+diff)/(r_b*x+diff)=new_r_a/new_r_b (approx)
-    // just make up valid: x=diff*(new_r_a-new_r_b)/((r_a*new_r_b-r_b*new_r_a)) if nonzero
-    const denom=r_a*new_r_b-r_b*new_r_a;
-    if(denom===0)return{text:`Age of ${A} is ${r_a*diff}`,opts:[r_a*diff,r_a*diff+5,r_a*diff-5,r_a*diff+10],correct:r_a*diff,solution:`${A}=${r_a*diff}`,type:'MCQ'};
-    const x=Math.abs(diff*(new_r_a-new_r_b)/denom);
-    const age_a=fmt(r_a*x);const age_b=fmt(r_b*x);
-    const w1=fmt(age_a+3),w2=fmt(age_a-3),w3=fmt(age_a+5);
-    return{text:`Ages of <strong>${A}:${B} = ${r_a}:${r_b}</strong>. After <strong>${diff} years</strong>, ratio becomes <strong>${r_a}+1:${r_b}+1</strong>? (approx). Find ${A}'s age.`,
-    opts:shuffle([age_a,w1,w2,w3]),correct:age_a,
-    solution:`${A}×${r_b} = ${B}×${r_a}. Solving: ${A} = <strong>${age_a} years</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const n=pick([20,25,30,40,50]);const avg=pick([14,16,18,20,22]);
-    const[teacher]=twoNames();const new_avg=avg+1;
-    const teacher_age=fmt((n+1)*new_avg-n*avg);
+    const n=pick([20,25,30,40,50]);const avg=pick([14,16,18,20,22,24]);
+    const new_avg=avg+1;const teacher_age=(n+1)*new_avg-n*avg;
     const w1=teacher_age+2,w2=teacher_age-2,w3=teacher_age+4;
-    return{text:`Average age of <strong>${n} students</strong> is <strong>${avg} years</strong>. When the teacher joins, average rises to <strong>${new_avg} years</strong>. Teacher's age?`,
+    return{text:`Average age of <strong>${n} students</strong> = <strong>${avg} yrs</strong>. Teacher joins → avg = <strong>${new_avg} yrs</strong>. Teacher's age?`,
     opts:shuffle([teacher_age,w1,w2,w3]),correct:teacher_age,
-    solution:`Teacher's age = (${n+1})×${new_avg} − ${n}×${avg} = ${(n+1)*new_avg} − ${n*avg} = <strong>${teacher_age} years</strong>`,type:'MCQ'}
+    solution:`Teacher = (${n+1})×${new_avg}−${n}×${avg} = ${(n+1)*new_avg}−${n*avg} = <strong>${teacher_age} yrs</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const ago=pick([3,4,5,6]);const factor=pick([2,3,4]);
-    const future=pick([3,4,5,6,8,10]);
-    const new_factor=factor-1;
-    // (A-ago)=factor*(B-ago); (A+future)=new_factor*(B+future)
-    // A=factor*B-factor*ago+ago=(factor*(1-1/new_factor))*...
-    // Just assign valid values
-    const b=fmt((future*(factor-new_factor)+ago*(new_factor-factor))/(new_factor-factor)+future);
-    // Use direct algebra: Let B=y: A-ago=factor*(y-ago)=>A=factor*y-ago*(factor-1)
-    // A+future=new_factor*(y+future)=>factor*y-ago*(factor-1)+future=new_factor*y+new_factor*future
-    // y*(factor-new_factor)=new_factor*future-future+ago*(factor-1)=future*(new_factor-1)+ago*(factor-1)
-    const num=future*(new_factor-1)+ago*(factor-1);const den=factor-new_factor;
-    if(den===0||num/den<0)return{text:`${A}'s age is ${factor*10}`,opts:[factor*10,factor*10+5,factor*10-5,factor*10+3],correct:factor*10,solution:`Age=${factor*10}`,type:'MCQ'};
-    const by=fmt(num/den);const ay=fmt(factor*by-ago*(factor-1));
-    const w1=fmt(ay+2),w2=fmt(ay-2),w3=fmt(ay+4);
-    return{text:`<strong>${ago} years ago</strong>, <strong>${A}</strong> was <strong>${factor} times</strong> as old as <strong>${B}</strong>. After <strong>${future} years</strong>, ${A} will be <strong>${new_factor} times</strong> B. Find ${A}'s present age.`,
-    opts:shuffle([ay,w1,w2,w3]),correct:ay,
-    solution:`Let ${B}=${by}. ${A}=${ay}. Verify: ${ago} yrs ago: ${fmt(ay-ago)}=${factor}×${fmt(by-ago)}? ${fmt(ay-ago)}=${factor*fmt(by-ago)}. <strong>${A}=${ay} years</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const sum=pick([40,45,50,55,60,70,80]);const diff=pick([2,4,6,8,10]);
+    const[A,B]=twoNames();const sum=pick([40,45,50,55,60,65,70,80]);const diff=pick([2,4,6,8,10,12]);
     const ageA=fmt((sum+diff)/2);const ageB=fmt((sum-diff)/2);
-    const w1=ageA+2,w2=ageA-2,w3=ageB;
-    return{text:`Sum of ages of <strong>${A}</strong> and <strong>${B}</strong> is <strong>${sum} years</strong>. ${A} is <strong>${diff} years</strong> older. Find ${A}'s age.`,
+    const w1=fmt(parseFloat(ageA)+2),w2=fmt(parseFloat(ageA)-2),w3=ageB;
+    return{text:`Sum of ages = <strong>${sum}</strong>. <strong>${A}</strong> is <strong>${diff} years</strong> older. Find ${A}'s age.`,
     opts:shuffle([ageA,w1,w2,w3]),correct:ageA,
     solution:`${A}=(${sum}+${diff})/2=${ageA}. ${B}=${ageB}. <strong>${A}=${ageA} years</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const ages=[rndN(15,30),rndN(20,40),rndN(25,50)].sort((a,b)=>a-b);
-    const avg=fmt((ages[0]+ages[1]+ages[2])/3);const sum=ages[0]+ages[1]+ages[2];
-    const w1=ages[2]+2,w2=ages[2]-2,w3=ages[2]+4;
-    return{text:`Average age of <strong>${A}(${ages[0]})</strong>, <strong>${B}(${ages[1]})</strong>, and <strong>${C}</strong> is <strong>${avg} years</strong>. Find ${C}'s age.`,
-    opts:shuffle([ages[2],w1,w2,w3]),correct:ages[2],
-    solution:`Sum=${sum}. ${C}=${sum}−${ages[0]}−${ages[1]}=<strong>${ages[2]} years</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const ago=pick([3,4,5,6]);const factor=pick([2,3,4,5]);
+    const future=pick([3,4,5,6,8,10]);const new_factor=factor-1;
+    const num=future*(new_factor-1)+ago*(factor-1);const den=factor-new_factor;
+    if(den===0||num/den<=0)return{text:`${A}'s age is ${factor*10}`,opts:[factor*10,factor*10+5,factor*10-5,factor*10+3],correct:factor*10,solution:`Age=${factor*10}`,type:'MCQ'};
+    const by=fmt(num/den);const ay=fmt(factor*parseFloat(by)-ago*(factor-1));
+    if(parseFloat(ay)<=0||parseFloat(by)<=0)return{text:`${A}'s age is ${factor*10}`,opts:[factor*10,factor*10+5,factor*10-5,factor*10+3],correct:factor*10,solution:`Age=${factor*10}`,type:'MCQ'};
+    const w1=fmt(parseFloat(ay)+2),w2=fmt(parseFloat(ay)-2),w3=fmt(parseFloat(ay)+4);
+    return{text:`<strong>${ago} years ago</strong>, <strong>${A}</strong> was <strong>${factor}×</strong> as old as <strong>${B}</strong>. After <strong>${future} years</strong>, ${A} will be <strong>${new_factor}×</strong> ${B}. ${A}'s present age?`,
+    opts:shuffle([ay,w1,w2,w3]),correct:ay,
+    solution:`${B}=${by}. ${A}=${factor}×${by}−${ago*(factor-1)}=<strong>${ay} years</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const r1=pick([3,4,5,6]);const r2=pick([2,3,4]);
-    return{text:`<strong>Data Sufficiency:</strong> What is present age of <strong>${A}</strong>?<br><strong>I:</strong> ${A} is ${r1} times as old as ${B} was ${r2} years ago.<br><strong>II:</strong> ${B}'s present age is 12 years.`,
+    const[A,B,C]=threeNames();const a=rndN(15,30);const b=rndN(20,40);const c=rndN(25,50);
+    const avg=fmt((a+b+c)/3);const sum=a+b+c;const w1=c+2,w2=c-2,w3=c+4;
+    return{text:`Average age of <strong>${A}(${a})</strong>, <strong>${B}(${b})</strong>, <strong>${C}</strong> is <strong>${avg} yrs</strong>. Find ${C}'s age.`,
+    opts:shuffle([c,w1,w2,w3]),correct:c,
+    solution:`Sum=${sum}. ${C}=${sum}−${a}−${b}=<strong>${c} years</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const ageB=pick([10,12,15,16,18,20,24,25]);const ageA=fmt(ageB*(1+pv(pe)/100));
+    const w1=fmt(parseFloat(ageA)+2),w2=fmt(parseFloat(ageA)-2),w3=ageB;
+    return{text:`<strong>${A}</strong> is <strong>${pv(pe)}% (${pf(pe)})</strong> older than <strong>${B}</strong>. ${B} is <strong>${ageB} years</strong>. ${A}'s age?`,
+    opts:shuffle([ageA,w1,w2,w3]),correct:ageA,
+    solution:`${A}=${ageB}×(1+${pf(pe)})=${ageB}×${fmt(1+pv(pe)/100)}=<strong>${ageA} years</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const cur_a=rndN(25,50);const cur_b=rndN(10,cur_a-5);
+    const yrs=pick([5,6,8,10,12,15]);
+    return{text:`<strong>Qty Comparison:</strong> Now: ${A}=${cur_a}, ${B}=${cur_b}.<br>Q1: ${A}'s age after ${yrs} yrs &nbsp; Q2: ${B}'s age after ${yrs} yrs`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 > Q2',
+    solution:`${A} always older. Q1=${cur_a+yrs}, Q2=${cur_b+yrs}. <strong>Q1 > Q2</strong>`,type:'Qty Comparison'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const r1=pick([3,4,5,6]);const r2=pick([1,2]);
+    return{text:`<strong>Data Sufficiency:</strong> What is present age of <strong>${A}</strong>?<br><strong>I:</strong> ${A} is ${r1}× as old as ${B} was ${r2} years ago.<br><strong>II:</strong> ${B}'s present age is 12 years.`,
     opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`From II: ${B}=12. From I: ${A}=${r1}×(12−${r2})=${r1*(12-r2)}. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+    solution:`${A}=${r1}×(12−${r2})=${r1*(12-r2)}. Need both. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
   ()=>{
-    const[A,B]=twoNames();const yrs=pick([5,8,10,12]);const r1_a=pick([3,4,5]);const r1_b=pick([1,2]);
-    const r2_a=r1_a-1;const r2_b=r1_b+1;
-    const num=yrs*(r2_a-r2_b)+0;
-    const den=r1_a*r2_b-r2_a*r1_b;
-    if(den===0)return{text:`${A}'s age is 20`,opts:[20,22,18,24],correct:20,solution:'Age=20',type:'MCQ'};
-    const b=Math.abs(fmt(num/den));const a=fmt(r1_a*b-r1_b*b);
-    const wa=fmt(a+3),wb=fmt(a-3),wc=fmt(a+5);
-    return{text:`<strong>Qty Comparison:</strong><br>Q1: ${A}'s present age (ratio ${A}:${B} = ${r1_a}:${r1_b} now; after ${yrs} yrs = ${r2_a}:${r2_b})<br>Q2: ${B}'s present age × 2`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
-    correct:parseFloat(a)>2*parseFloat(b)?'Q1 > Q2':parseFloat(a)<2*parseFloat(b)?'Q1 < Q2':'Q1 = Q2',
-    solution:`${A}=${a}, ${B}=${b}. Q1=${a}, Q2=${fmt(2*b)}. <strong>${parseFloat(a)>2*parseFloat(b)?'Q1 > Q2':parseFloat(a)<2*parseFloat(b)?'Q1 < Q2':'Q1 = Q2'}</strong>`,type:'Qty Comparison'}
+    const[A]=twoNames();const p_a=rndN(35,55);const p_s=rndN(8,20);
+    const diff_ratio=pick([3,4,5,6,7]);const yrs_ago=pick([4,5,6,8,10]);
+    const w1=yrs_ago+2,w2=yrs_ago-2,w3=yrs_ago+3;
+    return{text:`<strong>${A}</strong> is <strong>${p_a}</strong>. Son is <strong>${p_s}</strong>. How many years ago was ${A} <strong>${diff_ratio}×</strong> the son's age?<br>(Solve: ${p_a}−x = ${diff_ratio}×(${p_s}−x))`,
+    opts:shuffle([yrs_ago,w1,w2,w3]),correct:yrs_ago,
+    solution:`${p_a}−x=${diff_ratio}(${p_s}−x) → ${p_a}−x=${diff_ratio*p_s}−${diff_ratio}x → ${diff_ratio-1}x=${diff_ratio*p_s}-${p_a} → x=<strong>${yrs_ago} years</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const cur_a=rndN(25,45);const cur_b=rndN(10,cur_a-5);
-    const yrs_later=pick([5,6,8,10]);const new_a=cur_a+yrs_later;const new_b=cur_b+yrs_later;
-    const w1=new_a+2,w2=new_a-2,w3=new_a+3;
-    return{text:`Present age: <strong>${A}=${cur_a}</strong>, <strong>${B}=${cur_b}</strong>. What is ${A}'s age after <strong>${yrs_later} years</strong>?`,
-    opts:shuffle([new_a,w1,w2,w3]),correct:new_a,
-    solution:`${A}'s age = ${cur_a}+${yrs_later} = <strong>${new_a} years</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A]=twoNames();const p_a=rndN(35,55);const p_b=rndN(10,20);
-    const ago=pick([5,8,10]);
-    const w1=p_a-ago,w2=p_b-ago;
-    return{text:`<strong>${A}</strong>'s present age is <strong>${p_a} years</strong>, son's is <strong>${p_b} years</strong>. How many years ago was ${A} <strong>${p_a-p_b} times</strong> the son's age?`,
-    opts:shuffle([ago,ago+2,ago-2,ago+3]),correct:ago,
-    solution:`${A}−x = ${p_a-p_b}×(${p_b}−x). ${p_a}−x = ${p_a-p_b}×${p_b}−${p_a-p_b}x. Solving: x=<strong>${ago} years</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const r_a=pick([4,5,6,7,8]);const r_b=pick([2,3,4,5]);
+    const k=pick([3,4,5,6,7]);const ageA=r_a*k;const ageB=r_b*k;
+    const yrs=pick([3,4,5,6,8]);const nA=ageA+yrs;const nB=ageB+yrs;
+    const g=gcd(nA,nB);const ratio=`${nA/g}:${nB/g}`;
+    const w1=`${nA/g+1}:${nB/g}`,w2=`${nA/g}:${nB/g+1}`,w3=`${r_a}:${r_b}`;
+    return{text:`Ages of <strong>${A}</strong> and <strong>${B}</strong> are <strong>${ageA}</strong> and <strong>${ageB}</strong>. Ratio after <strong>${yrs} years</strong>?`,
+    opts:shuffle([ratio,w1,w2,w3]),correct:ratio,
+    solution:`${A}→${nA}, ${B}→${nB}. GCD=${g}. Ratio=<strong>${ratio}</strong>`,type:'MCQ'}
   },
 ]},
 
 // ─────────────────── PARTNERSHIP ───────────────────
 "Partnership":{icon:"🤝",color:"#ec4899",templates:[
   ()=>{
-    const[A,B]=twoNames();const ia=pick([10000,12000,15000,20000,24000]);
-    const ib=ia+pick([2000,4000,5000,8000]);const t=pick([8,10,12]);
-    const profit=pick([12000,15000,18000,20000,24000,30000]);
+    const[A,B]=twoNames();const ia=pick([10,12,15,20,24,25,30,40,50])*1000;
+    const ib=ia+pick([2,4,5,8,10])*1000;const t=pick([8,9,10,12]);
+    const profit=pick([12,15,18,20,24,25,30,36,40])*1000;
     const ra=ia*t;const rb=ib*t;const g=gcd(ra,rb);
-    const a_share=fmt(profit*ra/(ra+rb));const w1=a_share+500,w2=a_share-500,w3=fmt(profit/2);
-    return{text:`<strong>${A}</strong> invests Rs.<strong>${ia.toLocaleString()}</strong> and <strong>${B}</strong> invests Rs.<strong>${ib.toLocaleString()}</strong> for <strong>${t} months</strong> each. Profit = Rs.<strong>${profit.toLocaleString()}</strong>. Find ${A}'s share.`,
-    opts:shuffle([a_share,w1,w2,w3]),correct:a_share,
-    solution:`Ratio ${A}:${B} = ${ra/g}:${rb/g}. ${A}'s share = (${ra/g}/${(ra+rb)/g})×${profit} = <strong>Rs. ${a_share}</strong>`,type:'MCQ'}
+    const aShare=fmt(profit*ra/(ra+rb));const w1=fmt(parseFloat(aShare)+500),w2=fmt(parseFloat(aShare)-500),w3=fmt(profit/2);
+    return{text:`<strong>${A}</strong> invests Rs.<strong>${ia.toLocaleString()}</strong>, <strong>${B}</strong> invests Rs.<strong>${ib.toLocaleString()}</strong> — same duration. Profit=Rs.<strong>${profit.toLocaleString()}</strong>. ${A}'s share?`,
+    opts:shuffle([aShare,w1,w2,w3]),correct:aShare,
+    solution:`Ratio=${ra/g}:${rb/g}. ${A}=(${ra/g}/${(ra+rb)/g})×${profit}=<strong>Rs. ${aShare}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const ia=pick([20000,30000,40000,50000,60000]);
-    const ib=ia+pick([5000,10000,15000,20000]);const months_b=pick([4,6,8,9]);
-    const profit=pick([20000,25000,30000,36000,40000]);
+    const[A,B]=twoNames();const ia=pick([20,30,40,50,60])*1000;
+    const ib=ia+pick([5,10,15,20])*1000;const months_b=pick([4,6,8,9]);
+    const profit=pick([20,24,25,30,36,40,48])*1000;
     const ra=ia*12;const rb=ib*months_b;const g=gcd(ra,rb);
-    const b_share=fmt(profit*rb/(ra+rb));const w1=b_share+500,w2=b_share-500,w3=fmt(profit-b_share);
-    return{text:`<strong>${A}</strong> starts with Rs.<strong>${ia.toLocaleString()}</strong>. After ${12-months_b} months, <strong>${B}</strong> joins with Rs.<strong>${ib.toLocaleString()}</strong>. Annual profit Rs.<strong>${profit.toLocaleString()}</strong>. Find <strong>${B}'s</strong> share.`,
-    opts:shuffle([b_share,w1,w2,w3]),correct:b_share,
-    solution:`${A}=${ra/g} parts, ${B}=${rb/g} parts. Total=${(ra+rb)/g}. ${B}'s share=(${rb/g}/${(ra+rb)/g})×${profit}=<strong>Rs. ${b_share}</strong>`,type:'MCQ'}
+    const bShare=fmt(profit*rb/(ra+rb));const w1=fmt(parseFloat(bShare)+500),w2=fmt(parseFloat(bShare)-500),w3=fmt(profit/2);
+    return{text:`<strong>${A}</strong> starts with Rs.<strong>${ia.toLocaleString()}</strong>. After ${12-months_b} months, <strong>${B}</strong> joins with Rs.<strong>${ib.toLocaleString()}</strong>. Profit Rs.<strong>${profit.toLocaleString()}</strong>. ${B}'s share?`,
+    opts:shuffle([bShare,w1,w2,w3]),correct:bShare,
+    solution:`${A}=${ra/g} parts, ${B}=${rb/g} parts. ${B}=(${rb/g}/${(ra+rb)/g})×${profit}=<strong>Rs. ${bShare}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const ta=12;const tb=pick([8,9,10]);const tc=pick([4,5,6]);
-    const ia=pick([10000,12000,15000]);const ib=pick([12000,15000,18000]);const ic=pick([15000,18000,20000]);
-    const profit=pick([18000,20000,24000,27000,30000]);
-    const ra=ia*ta;const rb=ib*tb;const rc=ic*tc;const tot=ra+rb+rc;const g=gcd(gcd(ra,rb),rc);
-    const c_share=fmt(profit*rc/tot);const w1=c_share+500,w2=c_share-500,w3=fmt(profit/3);
-    return{text:`<strong>${A}</strong>(Rs.${ia.toLocaleString()},${ta}mo), <strong>${B}</strong>(Rs.${ib.toLocaleString()},${tb}mo), <strong>${C}</strong>(Rs.${ic.toLocaleString()},${tc}mo). Profit Rs.${profit.toLocaleString()}. <strong>${C}'s</strong> share?`,
-    opts:shuffle([c_share,w1,w2,w3]),correct:c_share,
-    solution:`Capitals: ${A}=${ra/g}, ${B}=${rb/g}, ${C}=${rc/g}. ${C}'s=(${rc/g}/${tot/g})×${profit}=<strong>Rs. ${c_share}</strong>`,type:'MCQ'}
+    const[A,B,C]=threeNames();const ia=pick([10,12,15,18,20])*1000;
+    const ib=pick([12,15,18,20,24])*1000;const ic=pick([15,18,20,24,25])*1000;
+    const ta=12;const tb=pick([8,9,10]);const tc=pick([4,5,6]);
+    const profit=pick([18,20,24,27,30,36])*1000;
+    const ra=ia*ta;const rb=ib*tb;const rc=ic*tc;const tot=ra+rb+rc;
+    const g=gcd(gcd(ra,rb),rc);
+    const cShare=fmt(profit*rc/tot);const w1=fmt(parseFloat(cShare)+500),w2=fmt(parseFloat(cShare)-500),w3=fmt(profit/3);
+    return{text:`<strong>${A}</strong>(Rs.${(ia/1000).toLocaleString()}K,${ta}mo), <strong>${B}</strong>(Rs.${(ib/1000).toLocaleString()}K,${tb}mo), <strong>${C}</strong>(Rs.${(ic/1000).toLocaleString()}K,${tc}mo). Profit Rs.${(profit/1000).toLocaleString()}K. <strong>${C}'s</strong> share?`,
+    opts:shuffle([cShare,w1,w2,w3]),correct:cShare,
+    solution:`Capitals: ${ra/g}:${rb/g}:${rc/g}. ${C}=(${rc/g}/${tot/g})×${profit}=<strong>Rs. ${cShare}</strong>`,type:'MCQ'}
   },
   ()=>{
     const[A,B]=twoNames();const ra=pick([2,3,4,5]);const rb=pick([3,4,5,6]);
-    const profit=rndN(500,3000)*10;const a_share=fmt(profit*ra/(ra+rb));
-    return{text:`<strong>Data Sufficiency:</strong> Find <strong>${A}'s</strong> share of profit.<br><strong>I:</strong> Profit ratio ${A}:${B} = ${ra}:${rb}.<br><strong>II:</strong> Total profit is Rs. ${profit}.`,
+    const profit=pick([10,12,15,16,18,20,24,25,30])*1000;
+    const aShare=fmt(profit*ra/(ra+rb));
+    return{text:`<strong>Data Sufficiency:</strong> Find <strong>${A}'s</strong> profit share.<br><strong>I:</strong> Ratio ${A}:${B}=${ra}:${rb}. &nbsp;<strong>II:</strong> Total profit=Rs.${profit.toLocaleString()}.`,
     opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
-    solution:`Need both ratio AND total profit. ${A}=(${ra}/${ra+rb})×${profit}=<strong>Rs. ${a_share}</strong>. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+    solution:`Need both ratio AND total. ${A}=(${ra}/${ra+rb})×${profit}=<strong>Rs. ${aShare}</strong>. Both needed.`,type:'Data Sufficiency'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const tot=pick([10000,12000,15000,18000,20000]);
-    const a_frac='1/3';const rest_half=fmt(tot*2/3/2);const c_less=pick([1000,2000,3000]);
-    const a_share=fmt(tot/3);
-    return{text:`<strong>${A}</strong> gets 1/3 of profit. ${B} and ${C} share rest equally. If Rs.<strong>${c_less}</strong> less than ${A}'s share goes to ${C}, find total profit.`,
-    opts:shuffle([fmt(c_less*6),fmt(c_less*4),fmt(c_less*3),fmt(c_less*9)]),
-    correct:fmt(c_less*6),
-    solution:`${A}=P/3, ${B}=${C}=P/3. But if ${C} gets P/3−${c_less}: difference=P/3−(P/3−${c_less})=${c_less}. Adjust: ${A}−${C}=${c_less}=P/6 (if equal halves). P=<strong>Rs. ${c_less*6}</strong>`,type:'MCQ'}
-  },
-  ()=>{
-    const[A,B]=twoNames();const ia=pick([20000,30000,40000,50000]);
-    const ib_frac=pick([0.5,0.75,1.5,2]);const ib=fmt(ia*ib_frac);
-    const profit=pick([20000,25000,30000,40000]);
-    const ra=ia;const rb=parseFloat(ib);const g=gcd(Math.round(ra/1000),Math.round(rb/1000));
-    const a_share=fmt(profit*ra/(ra+rb));const b_share=fmt(profit*rb/(ra+rb));
-    const rel=a_share>b_share?'Q1 > Q2':'Q1 < Q2';
-    return{text:`<strong>Qty Comparison:</strong> ${A} invests Rs.${ia.toLocaleString()}, ${B} invests Rs.${ib.toLocaleString()}. Total profit Rs.${profit.toLocaleString()}.<br>Q1: ${A}'s share &nbsp;&nbsp; Q2: ${B}'s share`,
+    const[A,B]=twoNames();const ia=pick([20,30,40,50])*1000;
+    const ib_mult=pick([0.5,0.75,1.5,2]);const ib=fmt(ia*ib_mult);
+    const profit=pick([20,24,25,30,36,40])*1000;
+    const aShare=fmt(profit*ia/(ia+parseFloat(ib)));const bShare=fmt(profit-parseFloat(aShare));
+    const rel=parseFloat(aShare)>parseFloat(bShare)?'Q1 > Q2':'Q1 < Q2';
+    return{text:`<strong>Qty Comparison:</strong> ${A}=Rs.${ia.toLocaleString()}, ${B}=Rs.${ib.toLocaleString()}. Profit=Rs.${profit.toLocaleString()}.<br>Q1: ${A}'s share &nbsp; Q2: ${B}'s share`,
     opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
-    solution:`Q1=${a_share}, Q2=${b_share}. <strong>${rel}</strong>`,type:'Qty Comparison'}
+    solution:`Q1=${aShare}, Q2=${bShare}. <strong>${rel}</strong>`,type:'Qty Comparison'}
   },
   ()=>{
-    const[A,B]=twoNames();const months_a=12;const ia=pick([30000,40000,50000,60000]);
-    const months_b=pick([6,8,9,10]);const total_profit=pick([21000,24000,28000,35000]);
-    const ratio_needed=ia*months_a;
-    const ib=fmt((total_profit-total_profit/2)*ratio_needed/(total_profit/2));//rough
-    const ra=ia*months_a;const rb=ra;// same share
-    const a_share=fmt(total_profit/2);
-    return{text:`<strong>${A}</strong> and <strong>${B}</strong> share profit equally. ${A} invests Rs.<strong>${ia.toLocaleString()}</strong> for 12 months. ${B} invests for <strong>${months_b} months</strong>. Find ${B}'s investment.`,
-    opts:shuffle([fmt(ia*12/months_b),fmt(ia*12/months_b+5000),fmt(ia*10/months_b),fmt(ia*12/months_b-5000)]),
-    correct:fmt(ia*12/months_b),
-    solution:`Equal profit ratio: ${A}×12 = ${B}'s investment×${months_b}. B's investment = ${ia}×12/${months_b} = <strong>Rs. ${fmt(ia*12/months_b).toLocaleString()}</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const ia=pick([20,25,30,40,50])*1000;
+    const months_b=pick([6,8,9,10]);
+    const ib=fmt(ia*12/months_b);
+    const w1=fmt(parseFloat(ib)+5000),w2=fmt(parseFloat(ib)-5000),w3=fmt(parseFloat(ib)*months_b/12);
+    return{text:`<strong>${A}</strong> invests Rs.<strong>${ia.toLocaleString()}</strong> for 12 months. <strong>${B}</strong> invests for <strong>${months_b} months</strong>. Equal profit share. Find ${B}'s investment.`,
+    opts:shuffle([ib,w1,w2,w3]),correct:ib,
+    solution:`Equal profit: ${ia}×12=${B}×${months_b}. ${B}=${ia*12}/${months_b}=<strong>Rs. ${ib.toLocaleString()}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const ia=pick([4000,5000,6000,8000]);const n=pick([3,4,5]);
-    const ib=ia*pick([2,3]);const ic=ib*pick([2,3]);
-    const profit=pick([12000,16000,20000,24000]);
-    const ra=ia,rb=ib,rc=ic;const tot=ra+rb+rc;const g=gcd(gcd(ra,rb),rc);
-    const shares=[fmt(profit*ra/tot),fmt(profit*rb/tot),fmt(profit*rc/tot)];
-    const maxShare=Math.max(...shares.map(Number));const minShare=Math.min(...shares.map(Number));
-    const diff=fmt(maxShare-minShare);const w1=diff+1000,w2=diff-1000,w3=diff+500;
-    return{text:`<strong>${A}</strong>, <strong>${B}</strong>, <strong>${C}</strong> invest in ratio <strong>${ra/g}:${rb/g}:${rc/g}</strong>. Profit Rs.<strong>${profit.toLocaleString()}</strong>. Difference between max and min shares?`,
-    opts:shuffle([diff,w1,w2,w3]),correct:diff,
-    solution:`Shares: ${shares.join(', ')}. Diff=${maxShare}−${minShare}=<strong>Rs. ${diff}</strong>`,type:'MCQ'}
+    const[A,B,C]=threeNames();
+    // Use strictly increasing a<b<c to guarantee diff>0 and distinct options
+    const a=pick([1,2,3,4]);const b=a+pick([1,2,3]);const c=b+pick([1,2,3]);
+    const profit=(a+b+c)*pick([1000,2000,3000,4000,5000]);
+    const sa=fmt(profit*a/(a+b+c));const sb=fmt(profit*b/(a+b+c));const sc=fmt(profit*c/(a+b+c));
+    const diff=fmt(parseFloat(sc)-parseFloat(sa));// always positive since c>a
+    const w1=fmt(parseFloat(diff)+profit*(b-a)/(a+b+c)),w2=fmt(parseFloat(diff)-profit*(c-b)/(a+b+c)),w3=fmt(parseFloat(diff)*2);
+    return{text:`<strong>${A}, ${B}, ${C}</strong> invest in ratio <strong>${a}:${b}:${c}</strong>. Profit Rs.<strong>${profit.toLocaleString()}</strong>. Difference: max − min share?`,
+    opts:shuffle([diff,fmt(w1),fmt(w2),fmt(w3)]),correct:diff,
+    solution:`${A}=${sa}, ${B}=${sb}, ${C}=${sc}. Max−Min=${sc}−${sa}=<strong>Rs. ${diff}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B]=twoNames();const ratio_a=pick([2,3,4,5]);const ratio_b=pick([3,4,5,6]);
-    const extra_bonus=pick([1000,2000,3000]);// A gets extra as working partner
-    const profit=pick([20000,24000,30000,36000]);
-    const rem=profit-extra_bonus;const a_share=extra_bonus+fmt(rem*ratio_a/(ratio_a+ratio_b));
-    const w1=fmt(parseFloat(a_share)+500),w2=fmt(parseFloat(a_share)-500),w3=fmt(profit/2);
-    return{text:`<strong>${A}</strong> is working partner and gets Rs.<strong>${extra_bonus}</strong> extra, then profit split ${ratio_a}:${ratio_b}. Total profit Rs.<strong>${profit.toLocaleString()}</strong>. ${A}'s total?`,
-    opts:shuffle([a_share,w1,w2,w3]),correct:a_share,
-    solution:`Remaining after bonus = ${rem}. ${A}'s ratio share = ${fmt(rem*ratio_a/(ratio_a+ratio_b))}. Total = ${extra_bonus}+${fmt(rem*ratio_a/(ratio_a+ratio_b))} = <strong>Rs. ${a_share}</strong>`,type:'MCQ'}
+    const[A,B]=twoNames();const bonus=pick([1000,2000,3000,5000]);
+    const ra=pick([2,3,4,5]);const rb=pick([3,4,5,6]);
+    const profit=pick([15,18,20,24,25,30])*1000;
+    const rem=profit-bonus;const aTotal=fmt(bonus+rem*ra/(ra+rb));
+    const w1=fmt(parseFloat(aTotal)+500),w2=fmt(parseFloat(aTotal)-500),w3=fmt(profit/2);
+    return{text:`Working partner <strong>${A}</strong> gets Rs.<strong>${bonus}</strong> bonus first, rest split <strong>${ra}:${rb}</strong>. Total profit Rs.<strong>${profit.toLocaleString()}</strong>. ${A}'s total?`,
+    opts:shuffle([aTotal,w1,w2,w3]),correct:aTotal,
+    solution:`Remaining=${rem}. ${A}'s ratio share=${fmt(rem*ra/(ra+rb))}. Total=${bonus}+${fmt(rem*ra/(ra+rb))}=<strong>Rs. ${aTotal}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const[A,B,C]=threeNames();const months=[12,pick([8,9,10]),pick([4,5,6])];
-    const investments=[pick([10000,15000,20000]),pick([12000,18000,24000]),pick([15000,20000,25000])];
-    const capitals=months.map((m,i)=>m*investments[i]);const tot=capitals.reduce((a,b)=>a+b,0);
-    const profit=pick([27000,30000,33000,36000]);
-    const shares=capitals.map(c=>fmt(profit*c/tot));
-    const maxI=capitals.indexOf(Math.max(...capitals));
-    return{text:`Partners invest Rs.${investments.map(i=>i.toLocaleString()).join(', ')} for ${months.join(', ')} months respectively. Profit Rs.${profit.toLocaleString()}. Who gets the highest share?`,
-    opts:[[A,B,C][maxI],...[[A,B,C][(maxI+1)%3],,[A,B,C][(maxI+2)%3]],'Cannot determine'].slice(0,4),
-    correct:[A,B,C][maxI],
-    solution:`Capital-months: ${capitals.join(', ')}. Highest = ${capitals[maxI]}. <strong>${[A,B,C][maxI]}</strong> gets the most (Rs. ${shares[maxI]}).`,type:'MCQ'}
+    const[A,B,C]=threeNames();const ms=[12,pick([8,9,10]),pick([4,5,6])];
+    const is_=[pick([10,12,15,18,20]),pick([12,15,18,20,24]),pick([15,18,20,24,25])].map(x=>x*1000);
+    const caps=ms.map((m,i)=>m*is_[i]);const tot=caps.reduce((a,b)=>a+b,0);
+    const profit=pick([27,30,33,36,40])*1000;
+    const maxI=caps.indexOf(Math.max(...caps));const names=[A,B,C];
+    return{text:`Partners invest Rs.${is_.map(i=>i.toLocaleString()).join('/')}, for ${ms.join('/')} months. Profit Rs.${profit.toLocaleString()}. Who gets highest share?`,
+    opts:shuffle([names[maxI],...names.filter((_,i)=>i!==maxI),'Cannot determine']).slice(0,4),
+    correct:names[maxI],
+    solution:`Cap×time: ${caps.join(',')}. Highest=${caps[maxI]}. <strong>${names[maxI]}</strong> gets the most.`,type:'MCQ'}
+  },
+  ()=>{
+    const[A,B]=twoNames();const pe=pickPct(PCT_SMALL);
+    const ia=pick([20,25,30,40,50])*1000;
+    const ib=fmt(ia*(1+pv(pe)/100));
+    const profit=pick([20,24,25,30])*1000;
+    const aShare=fmt(profit*ia/(ia+parseFloat(ib)));
+    const w1=fmt(parseFloat(aShare)+500),w2=fmt(parseFloat(aShare)-500),w3=fmt(profit/2);
+    return{text:`<strong>${B}</strong> invests <strong>${pv(pe)}% (${pf(pe)})</strong> more than <strong>${A}</strong>. ${A} invests Rs.<strong>${ia.toLocaleString()}</strong>. Profit Rs.<strong>${profit.toLocaleString()}</strong>. ${A}'s share?`,
+    opts:shuffle([aShare,w1,w2,w3]),correct:aShare,
+    solution:`${B}=${ib}. Ratio=${ia}:${ib}. ${A}=(${ia}/${ia+parseFloat(ib)})×${profit}=<strong>Rs. ${aShare}</strong>`,type:'MCQ'}
   },
 ]},
 
 // ─────────────────── MENSURATION ───────────────────
 "Mensuration":{icon:"📐",color:"#14b8a6",templates:[
   ()=>{
-    const l=pick([5,6,8,10,12,14,15,18,20]);const b=rndN(3,l-1);
+    const l=pick([5,6,7,8,9,10,11,12,14,15,16,18,20]);const b=rndN(3,l-1);
     const area=l*b;const peri=2*(l+b);const w1=area+l,w2=area-b,w3=l*l;
-    return{text:`Length of a rectangle is <strong>${l}m</strong> and breadth is <strong>${b}m</strong>. Find its area.`,
+    return{text:`Rectangle: length=<strong>${l}m</strong>, breadth=<strong>${b}m</strong>. Area?`,
     opts:shuffle([area,w1,w2,w3]),correct:area,
     solution:`Area = l×b = ${l}×${b} = <strong>${area} m²</strong>`,type:'MCQ'}
   },
   ()=>{
-    const r=pick([7,14,21,3.5,10.5]);const pi=22/7;
+    const r=pick([7,14,21,3.5,10.5,17.5]);const pi=22/7;
     const area=fmt(pi*r*r);const circ=fmt(2*pi*r);
-    const w1=fmt(area+10),w2=fmt(area-10),w3=fmt(circ*r);
-    return{text:`Radius of a circle = <strong>${r}m</strong>. Find its area. (π = 22/7)`,
+    const w1=fmt(parseFloat(area)+14),w2=fmt(parseFloat(area)-14),w3=fmt(parseFloat(circ)*r);
+    return{text:`Circle radius = <strong>${r}m</strong>. Area? (π=22/7)`,
     opts:shuffle([area,w1,w2,w3]),correct:area,
-    solution:`Area = πr² = (22/7)×${r}² = (22/7)×${r*r} = <strong>${area} m²</strong>`,type:'MCQ'}
+    solution:`Area=πr²=(22/7)×${r*r}=<strong>${area} m²</strong>`,type:'MCQ'}
   },
   ()=>{
-    const r=pick([3,4,5,6,7,8,10,12,14]);const h=pick([5,6,7,8,10,12,14,15,20]);const pi=22/7;
-    const csa=fmt(2*pi*r*h);const tsa=fmt(2*pi*r*(h+r));const vol=fmt(pi*r*r*h);
-    const w1=fmt(csa+20),w2=fmt(tsa+20),w3=fmt(csa-20);
-    return{text:`A cylinder has radius <strong>${r}m</strong> and height <strong>${h}m</strong>. Find its <strong>volume</strong>. (π = 22/7)`,
+    const r=pick([3,4,5,6,7,8,10,12,14]);const h=pick([5,6,7,8,9,10,12,14,15,20]);const pi=22/7;
+    const vol=fmt(pi*r*r*h);const csa=fmt(2*pi*r*h);
+    const w1=fmt(parseFloat(vol)+50),w2=fmt(parseFloat(vol)-50),w3=csa;
+    return{text:`Cylinder: radius=<strong>${r}m</strong>, height=<strong>${h}m</strong>. Volume? (π=22/7)`,
     opts:shuffle([vol,w1,w2,w3]),correct:vol,
-    solution:`Volume = πr²h = (22/7)×${r}²×${h} = (22/7)×${r*r}×${h} = <strong>${vol} m³</strong>`,type:'MCQ'}
+    solution:`Vol=πr²h=(22/7)×${r*r}×${h}=<strong>${vol} m³</strong>`,type:'MCQ'}
   },
   ()=>{
-    const side=pick([4,5,6,7,8,9,10,12]);const area=side*side;const peri=4*side;const diag=fmt(side*Math.sqrt(2));
-    const w1=area+side,w2=area-side,w3=peri;
-    return{text:`Side of a square is <strong>${side}m</strong>. Find its area.`,
+    const side=pick([4,5,6,7,8,9,10,11,12,14,15]);const area=side*side;
+    const w1=area+side,w2=4*side,w3=area+2*side;
+    return{text:`Square side = <strong>${side}m</strong>. Area?`,
     opts:shuffle([area,w1,w2,w3]),correct:area,
-    solution:`Area = side² = ${side}² = <strong>${area} m²</strong>`,type:'MCQ'}
+    solution:`Area=side²=${side}²=<strong>${area} m²</strong>`,type:'MCQ'}
   },
   ()=>{
     const r=pick([3,4,5,6,7,8,10,12,14]);const pi=22/7;
-    const area=fmt(pi*r*r);const cost_rate=pick([5,8,10,12,15,20]);
-    const total_cost=fmt(parseFloat(area)*cost_rate);
-    const w1=fmt(parseFloat(total_cost)+50),w2=fmt(parseFloat(total_cost)-50),w3=fmt(parseFloat(area)*cost_rate*2);
-    return{text:`A circular garden has radius <strong>${r}m</strong>. Cost of fencing at Rs.<strong>${cost_rate}/m²</strong> is?`,
-    opts:shuffle([total_cost,w1,w2,w3]),correct:total_cost,
-    solution:`Area=πr²=(22/7)×${r*r}=${area} m². Cost=${area}×${cost_rate}=<strong>Rs. ${total_cost}</strong>`,type:'MCQ'}
+    const area=fmt(pi*r*r);const rate=pick([5,8,10,12,15,20,25]);
+    const cost=fmt(parseFloat(area)*rate);
+    const w1=fmt(parseFloat(cost)+50),w2=fmt(parseFloat(cost)-50),w3=fmt(parseFloat(area)*rate*2);
+    return{text:`Circular garden radius=<strong>${r}m</strong>. Cost of turfing @ Rs.<strong>${rate}/m²</strong>?`,
+    opts:shuffle([cost,w1,w2,w3]),correct:cost,
+    solution:`Area=${area}m². Cost=${area}×${rate}=<strong>Rs. ${cost}</strong>`,type:'MCQ'}
   },
   ()=>{
-    const l=pick([6,8,10,12,15,18,20]);const b=rndN(3,l-2);const h=rndN(3,10);
-    const vol=l*b*h;const w1=vol+l*b,w2=vol-b*h,w3=2*(l*b+b*h+h*l);
-    return{text:`A cuboid has l=<strong>${l}m</strong>, b=<strong>${b}m</strong>, h=<strong>${h}m</strong>. Find its volume.`,
+    const l=pick([6,7,8,9,10,12,14,15,18,20]);const b=rndN(3,l-2);const h=rndN(3,10);
+    const vol=l*b*h;const w1=vol+l*b,w2=2*(l*b+b*h+h*l),w3=vol-b*h;
+    return{text:`Cuboid: l=<strong>${l}m</strong>, b=<strong>${b}m</strong>, h=<strong>${h}m</strong>. Volume?`,
     opts:shuffle([vol,w1,w2,w3]),correct:vol,
-    solution:`Volume = l×b×h = ${l}×${b}×${h} = <strong>${vol} m³</strong>`,type:'MCQ'}
+    solution:`Vol=l×b×h=${l}×${b}×${h}=<strong>${vol} m³</strong>`,type:'MCQ'}
   },
   ()=>{
-    const r=pick([3,4,5,6,7,8,10]);const h=pick([4,5,6,8,9,10,12]);
+    const r=pick([3,4,5,6,7,8,10]);const h=pick([4,5,6,8,9,10,12,15]);
     const slant=fmt(Math.sqrt(r*r+h*h));const pi=22/7;
-    const csa=fmt(pi*r*parseFloat(slant));const vol=fmt(pi*r*r*h/3);
-    const w1=fmt(parseFloat(vol)+20),w2=fmt(parseFloat(vol)-20),w3=fmt(parseFloat(csa)+20);
-    return{text:`A cone: radius=<strong>${r}m</strong>, height=<strong>${h}m</strong>. Slant height=<strong>${slant}m</strong>. Find volume. (π=22/7)`,
+    const vol=fmt(pi*r*r*h/3);const csa=fmt(pi*r*parseFloat(slant));
+    const w1=fmt(parseFloat(vol)+20),w2=csa,w3=fmt(parseFloat(vol)-20);
+    return{text:`Cone: r=<strong>${r}m</strong>, h=<strong>${h}m</strong>. Volume? (π=22/7)`,
     opts:shuffle([vol,w1,w2,w3]),correct:vol,
-    solution:`Vol=(1/3)πr²h=(1/3)×(22/7)×${r*r}×${h}=<strong>${vol} m³</strong>`,type:'MCQ'}
+    solution:`Slant=${slant}m. Vol=(1/3)πr²h=(1/3)×(22/7)×${r*r}×${h}=<strong>${vol} m³</strong>`,type:'MCQ'}
   },
   ()=>{
-    const a=pick([5,6,8,10,12]);const b=pick([4,5,6,8,10]);const c=pick([3,4,5,6]);
+    // Use Pythagorean triples and known triangles to guarantee valid triangles
+    const TRIANGLES=[[3,4,5],[5,12,13],[6,8,10],[8,15,17],[9,12,15],[7,24,25],[10,24,26],[5,5,6],[6,6,8],[7,7,8],[8,8,10],[10,10,12],[13,14,15],[6,7,8]];
+    const base=rnd(TRIANGLES);const scale=pick([1,2,3]);
+    const a=base[0]*scale;const b=base[1]*scale;const c=base[2]*scale;
     const s=fmt((a+b+c)/2);const area=fmt(Math.sqrt(parseFloat(s)*(parseFloat(s)-a)*(parseFloat(s)-b)*(parseFloat(s)-c)));
     const w1=fmt(parseFloat(area)+5),w2=fmt(parseFloat(area)-5),w3=fmt(a*b/2);
-    return{text:`Find area of triangle with sides <strong>${a}m</strong>, <strong>${b}m</strong>, <strong>${c}m</strong> using Heron's formula.`,
+    return{text:`Triangle sides: <strong>${a}m, ${b}m, ${c}m</strong>. Area (Heron's formula)?`,
     opts:shuffle([area,w1,w2,w3]),correct:area,
     solution:`s=(${a}+${b}+${c})/2=${s}. Area=√(${s}×${parseFloat(s)-a}×${parseFloat(s)-b}×${parseFloat(s)-c})=<strong>${area} m²</strong>`,type:'MCQ'}
   },
   ()=>{
-    const r=pick([3,4,5,6,7]);const pi=22/7;
-    const sphere_vol=fmt(4/3*pi*r*r*r);const sphere_sa=fmt(4*pi*r*r);
-    const w1=fmt(parseFloat(sphere_vol)+20),w2=fmt(parseFloat(sphere_vol)-20),w3=parseFloat(sphere_sa);
-    return{text:`Find the volume of a sphere with radius <strong>${r}m</strong>. (π=22/7)`,
-    opts:shuffle([sphere_vol,w1,w2,w3]),correct:sphere_vol,
-    solution:`V=(4/3)πr³=(4/3)×(22/7)×${r*r*r}=<strong>${sphere_vol} m³</strong>`,type:'MCQ'}
+    const r=pick([3,4,5,6,7,8,10,12,14]);const pi=22/7;
+    const vol=fmt(4/3*pi*r*r*r);const sa=fmt(4*pi*r*r);
+    const w1=fmt(parseFloat(vol)+50),w2=sa,w3=fmt(parseFloat(vol)-50);
+    return{text:`Sphere radius=<strong>${r}m</strong>. Volume? (π=22/7)`,
+    opts:shuffle([vol,w1,w2,w3]),correct:vol,
+    solution:`Vol=(4/3)πr³=(4/3)×(22/7)×${r*r*r}=<strong>${vol} m³</strong>`,type:'MCQ'}
   },
   ()=>{
-    const l1=pick([8,10,12,14,15,16,18,20]);const b1=rndN(4,l1-2);
-    const scale=pick([2,3,0.5]);const l2=l1*scale;const b2=b1*scale;
-    const a1=l1*b1;const a2=l2*b2;const ratio=fmt(a2/a1);
-    const w1=fmt(ratio+1),w2=fmt(ratio-0.5),w3=fmt(scale);
-    return{text:`<strong>Qty Comparison:</strong> Rectangle 1: ${l1}×${b1}. Rectangle 2: sides scaled by ${scale}.<br>Q1: Area ratio (R2/R1) &nbsp; Q2: ${ratio>1?ratio-0.5:ratio+0.5}`,
-    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
-    correct:ratio>parseFloat(ratio>1?ratio-0.5:ratio+0.5)?'Q1 > Q2':ratio<parseFloat(ratio>1?ratio-0.5:ratio+0.5)?'Q1 < Q2':'Q1 = Q2',
-    solution:`A1=${a1}, A2=${a2}. Ratio=${ratio}. <strong>Area scales by square of linear scale factor = ${scale*scale}</strong>`,type:'Qty Comparison'}
+    const pe=pickPct(PCT_SMALL);const l=cleanBase(pe,4,30);const b=Math.max(2,l-rndN(1,Math.floor(l/2)));
+    const area=l*b;const new_l=fmt(l*(1+pv(pe)/100));const new_b=fmt(b*(1+pv(pe)/100));
+    const new_area=fmt(parseFloat(new_l)*parseFloat(new_b));
+    const area_inc_pct=fmt((parseFloat(new_area)-area)/area*100);
+    const w1=fmt(2*pv(pe)),w2=pv(pe)*pv(pe)/100,w3=fmt(parseFloat(area_inc_pct)+5);
+    return{text:`Rectangle ${l}×${b}m. Both sides increased by <strong>${pv(pe)}% (${pf(pe)})</strong>. % increase in area?`,
+    opts:shuffle([`${area_inc_pct}%`,`${2*pv(pe)}%`,`${fmt(pv(pe)*pv(pe)/100)}%`,`${w3}%`]),
+    correct:`${area_inc_pct}%`,
+    solution:`New area=${new_l}×${new_b}=${new_area}. Inc%=(${new_area}-${area})/${area}×100=<strong>${area_inc_pct}%</strong> = 2r+r²/100 where r=${pv(pe)}`,type:'MCQ'}
+  },
+  ()=>{
+    const r=pick([7,14,21]);const pi=22/7;const area=fmt(pi*r*r);const circ=fmt(2*pi*r);
+    return{text:`<strong>Qty Comparison:</strong> Circle r=<strong>${r}m</strong>.<br>Q1: Area (m²) &nbsp; Q2: Circumference (m) × ${r}`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 = Q2',
+    solution:`Q1=πr²=${area}. Q2=2πr×r=2πr²=2×${area}. Wait: Q2=circ×r=${circ}×${r}=${fmt(parseFloat(circ)*r)}. Q1=${area}. <strong>${parseFloat(area)===parseFloat(circ)*r?'Q1 = Q2':parseFloat(area)>parseFloat(circ)*r?'Q1 > Q2':'Q1 < Q2'}</strong>`,type:'Qty Comparison'}
+  },
+  ()=>{
+    const l=pick([8,10,12,14,15,16,18,20]);const b=rndN(4,l-2);
+    const d=fmt(Math.sqrt(l*l+b*b));const w1=fmt(parseFloat(d)+1),w2=fmt(parseFloat(d)-1),w3=l+b;
+    return{text:`Rectangle: l=<strong>${l}m</strong>, b=<strong>${b}m</strong>. Diagonal length?`,
+    opts:shuffle([d,w1,w2,w3]),correct:d,
+    solution:`Diagonal=√(l²+b²)=√(${l*l}+${b*b})=√${l*l+b*b}=<strong>${d}m</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const side=pick([4,5,6,7,8,9,10,12,14]);const r_in=fmt(side/(2*Math.sqrt(3)));
+    const r_out=fmt(side/Math.sqrt(3));const pi=22/7;
+    const area=fmt(Math.sqrt(3)/4*side*side);
+    const w1=fmt(parseFloat(area)+5),w2=fmt(parseFloat(area)-5),w3=3*side;
+    return{text:`Equilateral triangle side=<strong>${side}m</strong>. Area? (√3≈1.732)`,
+    opts:shuffle([area,w1,w2,w3]),correct:area,
+    solution:`Area=(√3/4)×side²=1.732/4×${side*side}=<strong>${area} m²</strong>`,type:'MCQ'}
+  },
+  ()=>{
+    const l=pick([10,12,14,15,16,18,20,24,25]);const b=rndN(5,l-2);
+    const peri=2*(l+b);const rate=pick([5,8,10,12,15,20]);const cost=peri*rate;
+    const w1=cost+100,w2=cost-100,w3=l*b*rate;
+    return{text:`<strong>Data Sufficiency:</strong> Cost of fencing a rectangular field at Rs.${rate}/m.<br><strong>I:</strong> Length=${l}m. &nbsp;<strong>II:</strong> Breadth=${b}m.`,
+    opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
+    solution:`Perimeter=2(${l}+${b})=${peri}m. Cost=${peri}×${rate}=Rs.${cost}. Need both. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
 ]}
 };
-
 // ─────── HELPER FUNCTIONS ───────
 function gcd(a,b){a=Math.abs(Math.round(a));b=Math.abs(Math.round(b));while(b){[a,b]=[b,a%b]}return a||1}
 function lcm_f(a,b){return a*b/gcd(a,b)}
@@ -1445,7 +1536,7 @@ function generateQuestion(chapterName){
 //  STATE
 // ═══════════════════════════════════════════════════════════════
 let selChapters=[],selTimer=60,selQCount=20,selQType='all';
-let quizQs=[],curIdx=0,userAns=[],timerInt=null,timeLeft=60,quizStart=null;
+let quizQs=[],curIdx=0,userAns=[],timerInt=null,timeLeft=60,quizStart=null,isSubmitted=false;
 
 // ═══════════════════════════════════════════════════════════════
 //  DASHBOARD
@@ -1495,8 +1586,12 @@ function startQuiz(){
   while(quizQs.length<selQCount){quizQs.push(generateQuestion(selChapters[quizQs.length%selChapters.length]))}
   quizQs=quizQs.sort(()=>Math.random()-0.5).slice(0,selQCount);
   userAns=new Array(quizQs.length).fill(null);
-  curIdx=0;quizStart=Date.now();
+  curIdx=0;quizStart=Date.now();isSubmitted=false;
   showSc('sc-quiz');buildNav();renderQ(0);
+  // reset neutral counters
+  document.getElementById('lv-ans').textContent='0';
+  document.getElementById('lv-sk').textContent='0';
+  document.getElementById('lv-rem').textContent=quizQs.length;
 }
 function getTypeCategory(type){
   if(!type||type==='MCQ')return'mcq';
@@ -1536,10 +1631,21 @@ function renderQ(idx){
   q.opts.forEach((opt,i)=>{
     const btn=document.createElement('button');btn.className='opt';
     btn.innerHTML=`<span class="opt-lbl">${labels[i]}</span><span>${opt}</span>`;
-    btn.onclick=()=>selectOpt(i,btn);
-    if(userAns[idx]!==null&&userAns[idx]!=='skipped'&&userAns[idx]===String(opt))btn.classList.add('sel');
+    const answered=userAns[idx]!==null&&userAns[idx]!=='skipped';
+    if(isSubmitted){
+      // Post-submit: show green for correct, red for wrong selection, disable all
+      if(String(opt)===String(q.correct)) btn.classList.add('ok');
+      else if(answered&&userAns[idx]===String(opt)) btn.classList.add('bad');
+      btn.disabled=true;
+    } else {
+      // During quiz: only highlight selected (neutral blue), allow re-selection
+      if(answered&&userAns[idx]===String(opt)) btn.classList.add('sel');
+      btn.onclick=()=>selectOpt(i,btn);
+    }
     grid.appendChild(btn);
   });
+  // Show solution only after submit
+  if(isSubmitted) document.getElementById('sol-box').classList.add('show');
   document.getElementById('btn-prev').style.visibility=idx>0?'visible':'hidden';
   document.getElementById('btn-next').textContent=idx<quizQs.length-1?'Next →':'Finish →';
   timeLeft=selTimer;updateTimerUI();
@@ -1565,11 +1671,20 @@ function nextQ(){if(curIdx<quizQs.length-1){curIdx++;renderQ(curIdx)}else showMo
 function prevQ(){if(curIdx>0){curIdx--;renderQ(curIdx)}}
 function jumpQ(i){curIdx=i;renderQ(i)}
 function updateLive(){
-  let sc=0,ok=0,bad=0,sk=0;
-  userAns.forEach((a,i)=>{if(a===null||a==='skipped')sk++;else if(a===quizQs[i].correct){sc+=1;ok++}else{sc-=0.25;bad++}});
-  document.getElementById('lv-sc').textContent=sc.toFixed(2);
-  document.getElementById('lv-ok').textContent=ok;document.getElementById('lv-bad').textContent=bad;
+  let sc=0,ok=0,bad=0,sk=0,ans=0;
+  userAns.forEach((a,i)=>{
+    if(a===null)return;
+    if(a==='skipped')sk++;
+    else{ans++;if(a===quizQs[i].correct){sc+=1;ok++}else{sc-=0.25;bad++;}}
+  });
+  // Show only neutral progress — never reveal correct/wrong during quiz
+  document.getElementById('lv-ans').textContent=ans;
   document.getElementById('lv-sk').textContent=sk;
+  document.getElementById('lv-rem').textContent=Math.max(0,quizQs.length-ans-sk);
+  // Update hidden accumulators for final score calc
+  document.getElementById('lv-sc').textContent=sc.toFixed(2);
+  document.getElementById('lv-ok').textContent=ok;
+  document.getElementById('lv-bad').textContent=bad;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1582,7 +1697,7 @@ function showModal(){
 }
 function closeModal(){document.getElementById('modal').classList.remove('on')}
 function submitQuiz(){
-  closeModal();clearInterval(timerInt);
+  closeModal();clearInterval(timerInt);isSubmitted=true;
   userAns=userAns.map(a=>a===null?'skipped':a);
   buildResults(Math.round((Date.now()-quizStart)/1000));
   showSc('sc-res');
