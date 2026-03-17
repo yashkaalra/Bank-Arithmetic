@@ -633,6 +633,125 @@ const CHAPTERS = {
     opts:shuffle([after3,fmt(w1),fmt(w2),fmt(w3)]),correct:after3,
     solution:`After +${pv(pe1)}%: ${after1}. After +${pv(pe2)}%: ${after2}. After -${pv(pe3)}%: <strong>${after3}</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation: Two groups scored different % — find overall % when mixed
+  const[A,B]=twoNames();
+  const n1=pick([20,25,30,40,50]);const n2=pick([20,25,30,40,50]);
+  const pe1=pickPct(PCT_COMMON);const pe2=pickPct(PCT_COMMON.filter(p=>p[0]!==pv(pe1)));
+  const overall=fmt((n1*pv(pe1)+n2*pv(pe2))/(n1+n2));
+  const w1=fmt(parseFloat(overall)+3),w2=fmt((pv(pe1)+pv(pe2))/2),w3=fmt(parseFloat(overall)-3);
+  return{text:`<strong>${A}'s</strong> group of <strong>${n1}</strong> students scored <strong>${pv(pe1)}%</strong> average marks. <strong>${B}'s</strong> group of <strong>${n2}</strong> scored <strong>${pv(pe2)}%</strong>. Combined average %?`,
+  opts:shuffle([`${overall}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${overall}%`,
+  solution:`Alligation weighted avg: (${n1}×${pv(pe1)}+${n2}×${pv(pe2)})/(${n1}+${n2}) = <strong>${overall}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: mix two groups to get target percentage
+  const p1=pickPct(PCT_SMALL);const p2=pickPct(PCT_LARGE.filter(p=>p[0]>pv(p1)+10));
+  const tgt=fmt((pv(p1)+pv(p2))/2);
+  const rA=pv(p2)-parseFloat(tgt);const rB=parseFloat(tgt)-pv(p1);
+  const g=gcd(Math.round(rA*100),Math.round(rB*100));
+  return{text:`Two classes scored <strong>${pv(p1)}%</strong> and <strong>${pv(p2)}%</strong>. In what ratio must they be combined for overall <strong>${tgt}%</strong>?`,
+  opts:shuffle([`${Math.round(rA*100)/g}:${Math.round(rB*100)/g}`,`${Math.round(rB*100)/g}:${Math.round(rA*100)/g}`,`${Math.round(rA*100)/g+1}:${Math.round(rB*100)/g}`,`${Math.round(rA*100)/g}:${Math.round(rB*100)/g+1}`]),
+  correct:`${Math.round(rA*100)/g}:${Math.round(rB*100)/g}`,
+  solution:`Alligation: (${pv(p2)}−${tgt}):(${tgt}−${pv(p1)}) = ${rA}:${rB} = <strong>${Math.round(rA*100)/g}:${Math.round(rB*100)/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: Two exam attempts — find missing count
+  const pass1=pickPct(PCT_COMMON);const pass2=pickPct(PCT_COMMON.filter(p=>p[0]!==pv(pass1)));
+  const overall=pickPct(PCT_COMMON.filter(p=>p[0]>Math.min(pv(pass1),pv(pass2))&&p[0]<Math.max(pv(pass1),pv(pass2))));
+  const lo=Math.min(pv(pass1),pv(pass2));const hi=Math.max(pv(pass1),pv(pass2));const ov=pv(overall);
+  const r1=hi-ov;const r2=ov-lo;const g=gcd(r1,r2);
+  const n1=pick([100,200,300,400,500]);const n2=fmt(n1*r2/r1);
+  const w1=fmt(parseFloat(n2)+50),w2=fmt(parseFloat(n2)-50),w3=fmt(parseFloat(n2)*2);
+  return{text:`Centre A had <strong>${n1}</strong> students, pass%=<strong>${pv(pass1)}%</strong>. Centre B: pass%=<strong>${pv(pass2)}%</strong>. Overall pass%=<strong>${pv(overall)}%</strong>. Students in Centre B?`,
+  opts:shuffle([n2,w1,w2,w3]),correct:n2,
+  solution:`Alligation ratio A:B = (${pv(pass2)}−${pv(overall)}):(${pv(overall)}−${pv(pass1)}) = ${r1/g}:${r2/g}. B=(${r2/g}/${r1/g})×${n1}=<strong>${n2}</strong>`,type:'MCQ'}
+},
+  ()=>{
+  // Percentage change in ratio
+  const[A,B]=twoNames();const a=pick([3,4,5,6,7,8]);const b=pick([2,3,4,5,6,7]);
+  const incA=pick([10,20,25,50]);const incB=pick([10,20,25,50]);
+  const newA=a*(1+incA/100);const newB=b*(1+incB/100);
+  const oldRatio=fmt(a/b);const newRatio=fmt(newA/newB);
+  const change=fmt((newA/newB-a/b)/(a/b)*100);
+  const sign=parseFloat(change)>=0?'increase':'decrease';
+  const w1=fmt(Math.abs(parseFloat(change))+5),w2=fmt(incA-incB),w3=fmt(Math.abs(parseFloat(change))-5);
+  return{text:`<strong>${A}:${B}</strong> ratio is <strong>${a}:${b}</strong>. ${A} increases by <strong>${incA}%</strong>, ${B} by <strong>${incB}%</strong>. % change in ratio?`,
+  opts:shuffle([`${fmt(Math.abs(parseFloat(change)))}% ${sign}`,`${w1}% increase`,`${incA-incB}% increase`,`${w3}% ${sign}`]),
+  correct:`${fmt(Math.abs(parseFloat(change)))}% ${sign}`,
+  solution:`Old ratio=${oldRatio}. New ratio=${fmt(newA)}/${fmt(newB)}=${newRatio}. Change=(${newRatio}−${oldRatio})/${oldRatio}×100=<strong>${fmt(Math.abs(parseFloat(change)))}% ${sign}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Income expenditure savings
+  const[A]=twoNames();const income=pick([10,12,15,20,25,30,40,50])*1000;
+  const expPct=pick([60,65,70,75,80]);
+  const exp=income*expPct/100;const saving=income-exp;
+  const incIncome=pick([10,15,20,25]);const incExp=pick([5,8,10,15,20]);
+  const newIncome=income*(1+incIncome/100);
+  const newExp=exp*(1+incExp/100);
+  const newSaving=newIncome-newExp;
+  const savingChange=fmt((newSaving-saving)/saving*100);
+  const sign=parseFloat(savingChange)>=0?'increase':'decrease';
+  const w1=fmt(Math.abs(parseFloat(savingChange))+5),w2=fmt(incIncome-incExp),w3=fmt(Math.abs(parseFloat(savingChange))-5);
+  return{text:`<strong>${A}</strong> earns Rs.<strong>${income.toLocaleString()}</strong>, spends <strong>${expPct}%</strong>. Income rises <strong>${incIncome}%</strong>, expenditure rises <strong>${incExp}%</strong>. % change in savings?`,
+  opts:shuffle([`${fmt(Math.abs(parseFloat(savingChange)))}% ${sign}`,`${w1}% increase`,`${incIncome-incExp}% increase`,`${w3}% ${sign}`]),
+  correct:`${fmt(Math.abs(parseFloat(savingChange)))}% ${sign}`,
+  solution:`Saving=${saving}. New saving=${fmt(newSaving)}. Change=(${fmt(newSaving)}−${saving})/${saving}×100=<strong>${fmt(Math.abs(parseFloat(savingChange)))}% ${sign}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Votes and elections with invalid votes
+  const total=pick([8000,10000,12000,15000,20000]);
+  const invalidPct=pick([5,8,10,12,15]);
+  const valid=fmt(total*(1-invalidPct/100));
+  const winPct=pick([55,60,62.5,65,70,75]);
+  const winVotes=fmt(parseFloat(valid)*winPct/100);
+  const loseVotes=fmt(parseFloat(valid)-parseFloat(winVotes));
+  const margin=fmt(parseFloat(winVotes)-parseFloat(loseVotes));
+  const w1=fmt(parseFloat(margin)+100),w2=fmt(parseFloat(margin)-100),w3=fmt(parseFloat(valid)*(winPct-50)/100);
+  return{text:`Total votes: <strong>${total.toLocaleString()}</strong>. Invalid votes: <strong>${invalidPct}%</strong>. Winner gets <strong>${winPct}%</strong> of valid votes. Winning margin?`,
+  opts:shuffle([margin,w1,w2,w3]),correct:margin,
+  solution:`Valid votes=${valid}. Winner=${winVotes}, Loser=${loseVotes}. Margin=<strong>${margin}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Invalid votes + minimum votes to win
+  const candidates=pick([3,4,5]);
+  const total=pick([10000,12000,15000,18000,20000]);
+  const invalidPct=pick([4,5,8,10]);
+  const valid=Math.round(total*(1-invalidPct/100));
+  const minWin=Math.floor(valid/candidates)+1;
+  const w1=minWin+50,w2=Math.floor(valid/2)+1,w3=minWin-50;
+  return{text:`<strong>${candidates} candidates</strong>, <strong>${total.toLocaleString()}</strong> total votes, <strong>${invalidPct}%</strong> invalid. Minimum votes to guarantee win?`,
+  opts:shuffle([minWin,w1,w2,w3]),correct:minWin,
+  solution:`Valid = ${valid}. Min to guarantee = ⌊${valid}/${candidates}⌋+1 = <strong>${minWin}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Census — male/female/literacy
+  const pop=pick([50000,80000,100000,120000,150000]);
+  const malePct=pick([52,54,55,56,58,60]);const femalePct=100-malePct;
+  const males=pop*malePct/100;const females=pop-males;
+  const maleLitPct=pick([70,72,75,78,80]);const femLitPct=pick([50,55,60,62,65]);
+  const litMale=fmt(males*maleLitPct/100);const litFem=fmt(females*femLitPct/100);
+  const totalLit=fmt(parseFloat(litMale)+parseFloat(litFem));
+  const litPct=fmt(parseFloat(totalLit)/pop*100);
+  const w1=fmt(parseFloat(litPct)+3),w2=fmt((maleLitPct+femLitPct)/2),w3=fmt(parseFloat(litPct)-3);
+  return{text:`Population: <strong>${pop.toLocaleString()}</strong>. Males: <strong>${malePct}%</strong>, Females: <strong>${femalePct}%</strong>. Male literacy: <strong>${maleLitPct}%</strong>, Female: <strong>${femLitPct}%</strong>. Overall literacy %?`,
+  opts:shuffle([`${litPct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${litPct}%`,
+  solution:`Literate = ${litMale}+${litFem} = ${totalLit}. Overall% = ${totalLit}/${pop}×100 = <strong>${litPct}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Savings as % of income changes
+  const[A]=twoNames();const income=pick([20,25,30,40,50])*1000;
+  const savingPct=pick([10,15,20,25,30]);
+  const saving=income*savingPct/100;const exp=income-saving;
+  const newIncome=pick([10,15,20,25]);// % rise in income
+  const newIncomeAmt=income*(1+newIncome/100);
+  const sameSaving=saving;// saving stays same
+  const newExpPct=fmt((newIncomeAmt-sameSaving)/newIncomeAmt*100);
+  const w1=fmt(parseFloat(newExpPct)+2),w2=fmt(100-savingPct),w3=fmt(parseFloat(newExpPct)-2);
+  return{text:`<strong>${A}</strong> saves <strong>${savingPct}%</strong> of income Rs.<strong>${income.toLocaleString()}</strong>. Income rises <strong>${newIncome}%</strong>, saving amount unchanged. New expenditure as % of new income?`,
+  opts:shuffle([`${newExpPct}%`,`${w1}%`,`${100-savingPct}%`,`${w3}%`]),correct:`${newExpPct}%`,
+  solution:`New income=${fmt(newIncomeAmt)}. Same saving=${saving}. New exp%=(${fmt(newIncomeAmt)}−${saving})/${fmt(newIncomeAmt)}×100=<strong>${newExpPct}%</strong>`,type:'MCQ'}
+},
 ]},
 
 // ─────────────────── RATIO & PROPORTION ───────────────────
@@ -731,6 +850,140 @@ const CHAPTERS = {
     opts:shuffle([newB,w1,w2,w3]),correct:newB,
     solution:`${B}'s current=(${b}/${a})×${xa}=Rs.${xb}. After ${pf(pe)} raise=${xb}×(1+${pf(pe)})=<strong>Rs. ${newB}</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation on ratio: find mixing ratio to achieve target
+  const r1=pick([2,3,4,5]);const r2=r1+pick([2,3,4]);
+  const tgt=r1+pick([1,2]);
+  if(tgt>=r2)return{text:`Ratio alligation fallback`,opts:['1:1','2:1','1:2','3:1'],correct:'1:1',solution:`Equal`,type:'MCQ'};
+  const rA=r2-tgt;const rB=tgt-r1;const g=gcd(rA,rB);
+  return{text:`Two alloys have gold fractions <strong>${r1}/10</strong> and <strong>${r2}/10</strong>. Mix to get <strong>${tgt}/10</strong>. Ratio?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation: (${r2}−${tgt}):(${tgt}−${r1}) = ${rA}:${rB} = <strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: weighted average to find unknown quantity
+  const val1=pick([20,25,30,40,50,60]);const val2=val1+pick([20,30,40,50]);
+  const qty1=pick([10,15,20,25,30]);
+  const avg=rndN(val1+5,val2-5);
+  const qty2=fmt(qty1*(avg-val1)/(val2-avg));
+  const w1=fmt(parseFloat(qty2)+5),w2=fmt(parseFloat(qty2)-5),w3=fmt(parseFloat(qty2)*2);
+  return{text:`<strong>${qty1}kg</strong> of item @ Rs.<strong>${val1}/kg</strong> mixed with some qty @ Rs.<strong>${val2}/kg</strong> to get avg Rs.<strong>${avg}/kg</strong>. How much of 2nd item?`,
+  opts:shuffle([qty2,w1,w2,w3]),correct:qty2,
+  solution:`Alligation: ratio=${qty1}:(?) = (${val2}−${avg}):(${avg}−${val1}) = ${val2-avg}:${avg-val1}. Qty2=${qty1}×${avg-val1}/${val2-avg}=<strong>${qty2}kg</strong>`,type:'MCQ'}
+},
+()=>{
+  // Quantity Comparison with alligation
+  const cheap=pick([10,15,20,25]);const exp=cheap+pick([20,30,40,50]);
+  const tgt1=rndN(cheap+5,exp-5);const tgt2=rndN(cheap+5,exp-5);
+  const r1=exp-tgt1;const r2_1=tgt1-cheap;
+  const r3=exp-tgt2;const r4=tgt2-cheap;
+  const g1=gcd(r1,r2_1);const g2=gcd(r3,r4);
+  return{text:`<strong>Qty Comparison:</strong> Mix Rs.${cheap} & Rs.${exp} items.<br>Q1: Ratio for avg Rs.${tgt1} → cheaper part = ${r1/g1}<br>Q2: Ratio for avg Rs.${tgt2} → cheaper part = ${r3/g2}`,
+  opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
+  correct:r1/g1>r3/g2?'Q1 > Q2':r1/g1<r3/g2?'Q1 < Q2':'Q1 = Q2',
+  solution:`Alligation Q1: cheaper=${r1/g1}, Q2: cheaper=${r3/g2}. <strong>${r1/g1>r3/g2?'Q1 > Q2':r1/g1<r3/g2?'Q1 < Q2':'Q1 = Q2'}</strong>`,type:'Qty Comparison'}
+},
+  ()=>{
+  // Direct proportion
+  const[A,B]=twoNames();const x1=pick([4,5,6,8,10,12,15,20]);
+  const y1=pick([20,24,30,32,40,48,50,60]);
+  const x2=pick([6,9,10,12,15,18,20,25]);
+  const y2=fmt(y1*x2/x1);
+  const w1=fmt(parseFloat(y2)+y1/x1*2),w2=fmt(y1*x1/x2),w3=fmt(parseFloat(y2)-y1/x1*2);
+  return{text:`If <strong>${x1} items</strong> cost Rs.<strong>${y1}</strong>, what do <strong>${x2} items</strong> cost? (Direct proportion)`,
+  opts:shuffle([y2,w1,w2,w3]),correct:y2,
+  solution:`Cost ∝ items. ${y1}/${x1} = y/${x2}. y = ${y1}×${x2}/${x1} = <strong>Rs.${y2}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Inverse proportion
+  const m1=pick([4,5,6,8,10,12,15,20]);const d1=pick([10,12,15,18,20,24,30]);
+  const m2=pick([5,6,8,10,12,15,18,20]);
+  const d2=fmt(m1*d1/m2);
+  const w1=fmt(m2*d1/m1),w2=fmt(parseFloat(d2)+3),w3=fmt(parseFloat(d2)-3);
+  return{text:`<strong>${m1} men</strong> finish work in <strong>${d1} days</strong>. <strong>${m2} men</strong> finish same work in? (Inverse proportion)`,
+  opts:shuffle([d2,w1,w2,w3]),correct:d2,
+  solution:`Men × Days = constant. ${m1}×${d1} = ${m2}×d. d = ${m1*d1}/${m2} = <strong>${d2} days</strong>`,type:'MCQ'}
+},
+()=>{
+  // Fourth proportional
+  const a=pick([2,3,4,5,6]);const b=pick([4,6,8,10,12]);const c=pick([5,6,8,10,15,18,20]);
+  const d=fmt(b*c/a);
+  const w1=fmt(parseFloat(d)+2),w2=fmt(a*c/b),w3=fmt(parseFloat(d)-2);
+  return{text:`Find the <strong>fourth proportional</strong> to <strong>${a}, ${b}, ${c}</strong>.`,
+  opts:shuffle([d,w1,w2,w3]),correct:d,
+  solution:`Fourth proportional = (${b}×${c})/${a} = <strong>${d}</strong>. (a:b = c:d → d=bc/a)`,type:'MCQ'}
+},
+()=>{
+  // Third proportional
+  const a=pick([2,3,4,5,6,8]);const b=pick([4,6,8,10,12,16]);
+  const c=fmt(b*b/a);
+  const w1=fmt(parseFloat(c)+4),w2=fmt(a*b),w3=fmt(parseFloat(c)-4);
+  return{text:`Find the <strong>third proportional</strong> to <strong>${a}</strong> and <strong>${b}</strong>.`,
+  opts:shuffle([c,w1,w2,w3]),correct:c,
+  solution:`Third proportional: a:b = b:x → x = b²/a = ${b}²/${a} = <strong>${c}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Mean proportional
+  const a=pick([4,9,16,25,36,49,64]);const b=pick([9,16,25,36,49,64,81,100]);
+  const mean=fmt(Math.sqrt(a*b));
+  const w1=fmt((a+b)/2),w2=fmt(parseFloat(mean)+2),w3=fmt(parseFloat(mean)-2);
+  return{text:`Find the <strong>mean proportional</strong> between <strong>${a}</strong> and <strong>${b}</strong>.`,
+  opts:shuffle([mean,w1,w2,w3]),correct:mean,
+  solution:`Mean proportional = √(${a}×${b}) = √${a*b} = <strong>${mean}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Compounded ratio
+  const a1=pick([2,3,4,5]);const b1=pick([3,4,5,6]);
+  const a2=pick([3,4,5,6]);const b2=pick([4,5,6,7,8]);
+  const g=gcd(a1*a2,b1*b2);
+  const compA=a1*a2/g;const compB=b1*b2/g;
+  const w1=`${a1+a2}:${b1+b2}`,w2=`${compA+1}:${compB}`,w3=`${compA}:${compB+1}`;
+  return{text:`Find the <strong>compounded ratio</strong> of <strong>${a1}:${b1}</strong> and <strong>${a2}:${b2}</strong>.`,
+  opts:shuffle([`${compA}:${compB}`,w1,w2,w3]),correct:`${compA}:${compB}`,
+  solution:`Compounded ratio = (${a1}×${a2}):(${b1}×${b2}) = ${a1*a2}:${b1*b2} = <strong>${compA}:${compB}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Sub-duplicate ratio
+  const a=pick([4,9,16,25,36,49,64,81,100]);
+  const b=pick([9,16,25,36,49,64,81,100,121,144]);
+  const sa=Math.round(Math.sqrt(a));const sb=Math.round(Math.sqrt(b));
+  const g=gcd(sa,sb);
+  const w1=`${sa/g+1}:${sb/g}`,w2=`${a}:${b}`,w3=`${sa/g}:${sb/g+1}`;
+  return{text:`Find the <strong>sub-duplicate ratio</strong> of <strong>${a}:${b}</strong>.`,
+  opts:shuffle([`${sa/g}:${sb/g}`,w1,w2,w3]),correct:`${sa/g}:${sb/g}`,
+  solution:`Sub-duplicate = √${a}:√${b} = ${sa}:${sb} = <strong>${sa/g}:${sb/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Triplicate ratio
+  const a=pick([2,3,4,5]);const b=pick([3,4,5,6]);
+  const ta=a*a*a;const tb=b*b*b;const g=gcd(ta,tb);
+  const w1=`${ta/g+1}:${tb/g}`,w2=`${3*a}:${3*b}`,w3=`${a*a}:${b*b}`;
+  return{text:`Find the <strong>triplicate ratio</strong> of <strong>${a}:${b}</strong>.`,
+  opts:shuffle([`${ta/g}:${tb/g}`,w1,w2,w3]),correct:`${ta/g}:${tb/g}`,
+  solution:`Triplicate = ${a}³:${b}³ = ${ta}:${tb} = <strong>${ta/g}:${tb/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Sub-triplicate ratio
+  const a=pick([8,27,64,125,216,343,512]);
+  const b=pick([27,64,125,216,343,512,1000]);
+  const sa=Math.round(Math.cbrt(a));const sb=Math.round(Math.cbrt(b));
+  const g=gcd(sa,sb);
+  const w1=`${sa/g+1}:${sb/g}`,w2=`${a}:${b}`,w3=`${sa/g}:${sb/g+1}`;
+  return{text:`Find the <strong>sub-triplicate ratio</strong> of <strong>${a}:${b}</strong>.`,
+  opts:shuffle([`${sa/g}:${sb/g}`,w1,w2,w3]),correct:`${sa/g}:${sb/g}`,
+  solution:`Sub-triplicate = ∛${a}:∛${b} = ${sa}:${sb} = <strong>${sa/g}:${sb/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Direct + Inverse combined (joint variation)
+  const w1men=pick([4,5,6,8,10]);const w1days=pick([10,12,15,18,20]);const w1hrs=pick([6,8,9,10]);
+  const w2men=pick([5,6,8,10,12]);const w2hrs=pick([6,8,9,10,12]);
+  const w2days=fmt(w1men*w1days*w1hrs/(w2men*w2hrs));
+  const ww1=fmt(parseFloat(w2days)+2),ww2=fmt(w1men*w1days/w2men),ww3=fmt(parseFloat(w2days)-2);
+  return{text:`<strong>${w1men} men</strong> work <strong>${w1hrs} hrs/day</strong> for <strong>${w1days} days</strong>. How many days for <strong>${w2men} men</strong> at <strong>${w2hrs} hrs/day</strong>?`,
+  opts:shuffle([w2days,ww1,ww2,ww3]),correct:w2days,
+  solution:`M₁D₁H₁ = M₂D₂H₂ → ${w1men}×${w1days}×${w1hrs} = ${w2men}×D₂×${w2hrs}. D₂ = <strong>${w2days} days</strong>`,type:'MCQ'}
+},
 ]},
 
 // ─────────────────── PROFIT & LOSS ───────────────────
@@ -832,6 +1085,234 @@ const CHAPTERS = {
     opts:shuffle([`${markup}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${markup}%`,
     solution:`SP=${sp}, CP=${fmt(cp)}. Markup%=(MP-CP)/CP×100=(${mp}-${fmt(cp)})/${fmt(cp)}×100=<strong>${markup}%</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation on CP to find mixing ratio for target profit
+  const cp1=pick([20,25,30,40,50,60,80,100]);
+  const cp2=cp1+pick([20,30,40,50,60]);
+  const sp=cp1+pick([10,15,20,25,30]);// SP between cp1 and cp2
+  if(sp>=cp2)return{text:`Profit alligation fallback`,opts:['1:1','2:1','1:2','3:1'],correct:'2:1',solution:`Alligation`,type:'MCQ'};
+  const rA=cp2-sp;const rB=sp-cp1;const g=gcd(rA,rB);
+  return{text:`Two items bought @ Rs.<strong>${cp1}</strong> and Rs.<strong>${cp2}</strong>. Mix & sell all at Rs.<strong>${sp}</strong> each for no profit no loss overall. Ratio of quantities?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`No profit/loss: avg CP = SP = ${sp}. Alligation on CP: (${cp2}−${sp}):(${sp}−${cp1})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation on profit% to find mixing ratio
+  const prof1=pickPct(PCT_SMALL);const prof2=pickPct(PCT_SMALL.filter(p=>p[0]>pv(prof1)));
+  const tgtProf=pickPct(PCT_SMALL.filter(p=>p[0]>pv(prof1)&&p[0]<pv(prof2)));
+  if(!tgtProf)return{text:`Fallback`,opts:['1:1','2:1','1:2','3:1'],correct:'1:1',solution:``,type:'MCQ'};
+  const rA=pv(prof2)-pv(tgtProf);const rB=pv(tgtProf)-pv(prof1);const g=gcd(rA,rB);
+  return{text:`Batch A yields <strong>${pv(prof1)}%</strong> profit, Batch B yields <strong>${pv(prof2)}%</strong> profit. Mix for <strong>${pv(tgtProf)}%</strong> overall profit. Ratio A:B?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation: (${pv(prof2)}−${pv(tgtProf)}):(${pv(tgtProf)}−${pv(prof1)})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Find avg SP when two lots mixed
+  const cp1=pick([100,120,150,200]);const cp2=cp1+pick([50,80,100,120]);
+  const pe1=pickPct(PCT_SMALL);const pe2=pickPct(PCT_SMALL);
+  const sp1=fmt(cp1*(1+pv(pe1)/100));const sp2=fmt(cp2*(1+pv(pe2)/100));
+  const n1=pick([10,20,30,40,50]);const n2=pick([10,20,30,40,50]);
+  const avgSP=fmt((n1*parseFloat(sp1)+n2*parseFloat(sp2))/(n1+n2));
+  const w1=fmt(parseFloat(avgSP)+10),w2=fmt(parseFloat(avgSP)-10),w3=fmt((parseFloat(sp1)+parseFloat(sp2))/2);
+  return{text:`<strong>${n1} items</strong> bought @ Rs.${cp1} sold at ${pv(pe1)}% profit. <strong>${n2} items</strong> @ Rs.${cp2} sold at ${pv(pe2)}% profit. Average SP?`,
+  opts:shuffle([avgSP,w1,w2,w3]),correct:avgSP,
+  solution:`SP1=${sp1}, SP2=${sp2}. Avg=(${n1}×${sp1}+${n2}×${sp2})/${n1+n2}=<strong>Rs.${avgSP}</strong>`,type:'MCQ'}
+},
+  ()=>{
+  // False weight: shopkeeper uses X grams instead of 1000g
+  const short=pick([50,60,80,100,120,150,200]);
+  const trueWt=1000;const falseWt=trueWt-short;
+  const profitPct=fmt(short/falseWt*100);
+  const w1=fmt(parseFloat(profitPct)+2),w2=fmt(short/trueWt*100),w3=fmt(parseFloat(profitPct)-2);
+  return{text:`A dishonest shopkeeper uses a weight of <strong>${falseWt}g</strong> instead of <strong>1kg</strong>. Profit %?`,
+  opts:shuffle([`${profitPct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${profitPct}%`,
+  solution:`Profit% = (Error/True wt − Error) × 100 = ${short}/${falseWt} × 100 = <strong>${profitPct}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // False weight + markup: uses false weight AND sells above CP
+  const short=pick([50,80,100,120,150]);
+  const trueWt=1000;const falseWt=trueWt-short;
+  const peMark=pickPct(PCT_SMALL);
+  const profitFromWeight=short/falseWt*100;
+  const totalProfit=fmt(pv(peMark)+profitFromWeight+pv(peMark)*profitFromWeight/100);
+  const w1=fmt(pv(peMark)+profitFromWeight),w2=fmt(parseFloat(totalProfit)+3),w3=fmt(parseFloat(totalProfit)-3);
+  return{text:`A shopkeeper uses <strong>${falseWt}g</strong> weight instead of 1kg AND marks price <strong>${pv(peMark)}% (${pf(peMark)})</strong> above CP. Total profit %?`,
+  opts:shuffle([`${totalProfit}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${totalProfit}%`,
+  solution:`Profit from cheating=${fmt(profitFromWeight)}%. Combined = (1+${pf(peMark)})×(1+${short}/${falseWt})−1 = <strong>${totalProfit}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Find false weight given profit %
+  const pe=pickPct(PCT_SMALL);
+  const falseWt=fmt(1000*100/(100+pv(pe)));
+  const short=fmt(1000-parseFloat(falseWt));
+  const w1=fmt(parseFloat(falseWt)+10),w2=fmt(parseFloat(falseWt)-10),w3=fmt(1000-pv(pe)*10);
+  return{text:`A dishonest shopkeeper earns <strong>${pv(pe)}% (${pf(pe)})</strong> profit by using false weights. What weight does he use per kg?`,
+  opts:shuffle([`${falseWt}g`,`${w1}g`,`${w2}g`,`${w3}g`]),correct:`${falseWt}g`,
+  solution:`False wt = 1000×100/(100+${pv(pe)}) = <strong>${falseWt}g</strong>. Shortchanges by ${short}g per kg.`,type:'MCQ'}
+},
+()=>{
+  // Buys by false weight, sells by false weight
+  const buyShort=pick([50,80,100,120]);const sellShort=pick([50,80,100,120]);
+  const trueWt=1000;
+  const buy=trueWt+buyShort;// gets extra while buying
+  const sell=trueWt-sellShort;// gives less while selling
+  const profitPct=fmt((buy/sell-1)*100);
+  const w1=fmt(parseFloat(profitPct)+3),w2=fmt((buyShort+sellShort)/trueWt*100),w3=fmt(parseFloat(profitPct)-3);
+  return{text:`A shopkeeper buys using a <strong>${buy}g</strong> weight (marked 1kg) and sells using a <strong>${sell}g</strong> weight (marked 1kg). No price change. Profit %?`,
+  opts:shuffle([`${profitPct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${profitPct}%`,
+  solution:`Gets ${buy}g, gives ${sell}g. Profit%=(${buy}/${sell}−1)×100=<strong>${profitPct}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Discount claimed but false weight used — net result
+  const peDisc=pickPct(PCT_SMALL.slice(0,4));// small discount 5-15%
+  const short=pick([50,80,100,120,150]);
+  const falseWt=1000-short;
+  const profitFromWt=short/falseWt*100;
+  const net=fmt(profitFromWt-pv(peDisc)-pv(peDisc)*profitFromWt/100);
+  const sign=parseFloat(net)>=0?'Profit':'Loss';
+  const w1=fmt(Math.abs(parseFloat(net))+2),w2=fmt(profitFromWt-pv(peDisc)),w3=fmt(Math.abs(parseFloat(net))-2);
+  return{text:`Shopkeeper offers <strong>${pv(peDisc)}%</strong> discount but uses <strong>${falseWt}g</strong> instead of 1kg. Net profit/loss %?`,
+  opts:shuffle([`${fmt(Math.abs(parseFloat(net)))}% ${sign}`,`${w1}% Profit`,`${w2}% Profit`,`${w3}% Profit`]),
+  correct:`${fmt(Math.abs(parseFloat(net)))}% ${sign}`,
+  solution:`Profit from false wt=${fmt(profitFromWt)}%. After ${pv(peDisc)}% discount: net=(1+${fmt(profitFromWt/100)})×(1−${pf(peDisc)})−1=<strong>${fmt(Math.abs(parseFloat(net)))}% ${sign}</strong>`,type:'MCQ'}
+},
+()=>{
+  // SP given, find true CP when shopkeeper cheats on weight
+  const sp=cleanBase(PCT_SMALL[0],200,2000);
+  const short=pick([50,80,100,120,150]);const falseWt=1000-short;
+  const trueCost=fmt(sp*falseWt/1000);
+  const w1=fmt(parseFloat(trueCost)+20),w2=fmt(parseFloat(trueCost)-20),w3=sp;
+  return{text:`Shopkeeper sells 1kg (uses <strong>${falseWt}g</strong> weight) at Rs.<strong>${sp}</strong>. True cost of what customer actually receives?`,
+  opts:shuffle([trueCost,w1,w2,w3]),correct:trueCost,
+  solution:`Customer gets only ${falseWt}g. True cost = (${falseWt}/1000)×${sp} = <strong>Rs.${trueCost}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Quantity Comparison: two shopkeepers — who profits more
+  const short1=pick([50,80,100]);const short2=pick([100,120,150,200]);
+  const p1=fmt(short1/(1000-short1)*100);const p2=fmt(short2/(1000-short2)*100);
+  const rel=parseFloat(p1)>parseFloat(p2)?'Q1 > Q2':parseFloat(p1)<parseFloat(p2)?'Q1 < Q2':'Q1 = Q2';
+  return{text:`<strong>Qty Comparison:</strong><br>Q1: Profit% — shopkeeper uses <strong>${1000-short1}g</strong> per kg<br>Q2: Profit% — shopkeeper uses <strong>${1000-short2}g</strong> per kg`,
+  opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
+  solution:`Q1=${p1}%, Q2=${p2}%. Larger shortfall → more profit. <strong>${rel}</strong>`,type:'Qty Comparison'}
+},
+()=>{
+  // Data Sufficiency: find profit from cheating
+  const short=pick([50,80,100,120]);const falseWt=1000-short;
+  const profitPct=fmt(short/falseWt*100);
+  return{text:`<strong>Data Sufficiency:</strong> Find shopkeeper's profit % from false weight.<br><strong>I:</strong> He uses ${falseWt}g per kg.<br><strong>II:</strong> He shortchanges by ${short}g per transaction.`,
+  opts:['Only I','Only II','Either I or II','Both needed'],correct:'Either I or II',
+  solution:`From I: profit=${short}/${falseWt}×100=${profitPct}%. From II: same calculation. <strong>Either alone is sufficient.</strong>`,type:'Data Sufficiency'}
+},
+()=>{
+  // Reverse: find SP to get X% profit despite giving discount — with false weight backstory
+  const peTarget=pickPct(PCT_SMALL);
+  const short=pick([80,100,120,150]);const falseWt=1000-short;
+  const profitFromWt=short/falseWt*100;
+  const netNeededFromPrice=fmt(pv(peTarget)-profitFromWt-pv(peTarget)*profitFromWt/100);
+  const conclusion=parseFloat(netNeededFromPrice)>0?`must also charge ${fmt(Math.abs(parseFloat(netNeededFromPrice)))}% above CP on price`:`already earns more than ${pv(peTarget)}% from weight alone`;
+  const w1=`${fmt(Math.abs(parseFloat(netNeededFromPrice))+2)}% above CP`,w2=`${fmt(Math.abs(parseFloat(netNeededFromPrice))-2)}% above CP`,w3=`${pv(peTarget)}% above CP`;
+  return{text:`Shopkeeper uses <strong>${falseWt}g</strong> weight per kg. To earn total <strong>${pv(peTarget)}%</strong> profit, what price markup on CP is also needed?`,
+  opts:shuffle([`${fmt(Math.abs(parseFloat(netNeededFromPrice)))}% above CP`,w1,w2,w3]),
+  correct:`${fmt(Math.abs(parseFloat(netNeededFromPrice)))}% above CP`,
+  solution:`Profit from weight alone=${fmt(profitFromWt)}%. For total ${pv(peTarget)}%: additional price markup needed=<strong>${fmt(Math.abs(parseFloat(netNeededFromPrice)))}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Classic: cost price given, false weight profit — find actual earning per kg sold
+  const cp=pick([40,50,60,80,100,120,150]);
+  const short=pick([50,80,100,150,200]);const falseWt=1000-short;
+  const profitPerKg=fmt(cp*short/falseWt);
+  const w1=fmt(parseFloat(profitPerKg)+5),w2=fmt(cp*short/1000),w3=fmt(parseFloat(profitPerKg)-5);
+  return{text:`CP of item = Rs.<strong>${cp}/kg</strong>. Shopkeeper sells at CP but uses <strong>${falseWt}g</strong> per kg. Actual profit per kg sold?`,
+  opts:shuffle([profitPerKg,w1,w2,w3]),correct:profitPerKg,
+  solution:`Pays for ${falseWt}g, charges for 1000g. Profit per kg = ${cp}×${short}/${falseWt} = <strong>Rs.${profitPerKg}</strong>`,type:'MCQ'}
+},
+  ()=>{
+  // Successive discounts
+  const d1=pick([5,10,15,20,25]);const d2=pick([5,10,15,20,25]);
+  const mp=pick([500,800,1000,1200,1500,2000]);
+  const sp=fmt(mp*(1-d1/100)*(1-d2/100));
+  const effective=fmt(100-(100-d1)*(100-d2)/100);
+  const w1=fmt(mp*(1-(d1+d2)/100)),w2=fmt(parseFloat(sp)+50),w3=fmt(parseFloat(sp)-50);
+  return{text:`MP = Rs.<strong>${mp}</strong>. Successive discounts of <strong>${d1}%</strong> and <strong>${d2}%</strong>. Final SP?`,
+  opts:shuffle([sp,w1,w2,w3]),correct:sp,
+  solution:`SP = ${mp}×(1−${d1}/100)×(1−${d2}/100) = ${mp}×${fmt((100-d1)/100)}×${fmt((100-d2)/100)} = <strong>Rs.${sp}</strong>. Effective discount = <strong>${effective}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Equivalent single discount for two successive discounts
+  const d1=pick([10,15,20,25,30]);const d2=pick([5,10,15,20,25]);
+  const effective=fmt(d1+d2-d1*d2/100);
+  const w1=d1+d2,w2=fmt(parseFloat(effective)+2),w3=fmt(parseFloat(effective)-2);
+  return{text:`Two successive discounts of <strong>${d1}%</strong> and <strong>${d2}%</strong>. Equivalent single discount?`,
+  opts:shuffle([`${effective}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${effective}%`,
+  solution:`Equivalent = d1+d2−(d1×d2/100) = ${d1}+${d2}−${fmt(d1*d2/100)} = <strong>${effective}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Three successive discounts — find SP
+  const d1=pick([10,15,20]);const d2=pick([5,10,15]);const d3=pick([5,8,10]);
+  const mp=pick([1000,1500,2000,2500,3000]);
+  const sp=fmt(mp*(1-d1/100)*(1-d2/100)*(1-d3/100));
+  const w1=fmt(mp*(1-(d1+d2+d3)/100)),w2=fmt(parseFloat(sp)+100),w3=fmt(parseFloat(sp)-100);
+  return{text:`MP = Rs.<strong>${mp}</strong>. Three successive discounts: <strong>${d1}%, ${d2}%, ${d3}%</strong>. Final SP?`,
+  opts:shuffle([sp,w1,w2,w3]),correct:sp,
+  solution:`SP = ${mp}×${fmt((100-d1)/100)}×${fmt((100-d2)/100)}×${fmt((100-d3)/100)} = <strong>Rs.${sp}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Two articles same SP — one profit one loss same %
+  const sp=pick([400,500,600,800,1000,1200,1500]);
+  const pc=pick([5,10,15,20,25]);
+  const cp1=fmt(sp*100/(100+pc));const cp2=fmt(sp*100/(100-pc));
+  const totalCP=fmt(parseFloat(cp1)+parseFloat(cp2));
+  const loss=fmt(parseFloat(totalCP)-2*sp);
+  const lossPct=fmt(pc*pc/100);
+  const w1='No profit no loss',w2=`${pc}% Profit`,w3=`${fmt(parseFloat(lossPct)+2)}% Loss`;
+  return{text:`Two articles each sold at Rs.<strong>${sp}</strong>. One at <strong>${pc}%</strong> profit, other at <strong>${pc}%</strong> loss. Overall result?`,
+  opts:shuffle([`${lossPct}% Loss`,w1,w2,w3]),correct:`${lossPct}% Loss`,
+  solution:`CP1=${cp1}, CP2=${cp2}. TotalCP=${totalCP}, TotalSP=${2*sp}. Loss%=(common%)²/100=${pc}²/100=<strong>${lossPct}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Faulty balance — one arm longer
+  const trueWt=pick([900,950,960,980]);const falseWt=1000+(1000-trueWt);
+  const profitPct=fmt((falseWt-trueWt)/trueWt*100);
+  const w1=fmt(parseFloat(profitPct)+2),w2=fmt((falseWt-trueWt)/1000*100),w3=fmt(parseFloat(profitPct)-2);
+  return{text:`A faulty balance shows <strong>1000g</strong> but one pan is heavier — goods side actually weighs <strong>${trueWt}g</strong>. Shopkeeper sells at CP. Profit %?`,
+  opts:shuffle([`${profitPct}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${profitPct}%`,
+  solution:`Gets ${trueWt}g worth but charges for 1000g. Profit% = (1000−${trueWt})/${trueWt}×100 = <strong>${profitPct}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Faulty balance — find true weight given profit%
+  const profitPct=pick([4,5,8,10,25]);
+  const trueWt=fmt(1000*100/(100+profitPct));
+  const w1=fmt(parseFloat(trueWt)+20),w2=fmt(parseFloat(trueWt)-20),w3=fmt(1000-profitPct*8);
+  return{text:`A shopkeeper earns <strong>${profitPct}%</strong> profit using a faulty balance (sells at CP). True weight shown as 1kg is actually?`,
+  opts:shuffle([`${trueWt}g`,`${w1}g`,`${w2}g`,`${w3}g`]),correct:`${trueWt}g`,
+  solution:`True wt = 1000×100/(100+${profitPct}) = <strong>${trueWt}g</strong>`,type:'MCQ'}
+},
+()=>{
+  // Equivalent single discount given MP and CP
+  const cp=pick([200,300,400,500,600,800]);
+  const markup=pick([25,40,50,60,80,100]);
+  const mp=fmt(cp*(1+markup/100));
+  const disc=pick([10,15,20,25]);
+  const sp=fmt(parseFloat(mp)*(1-disc/100));
+  const netDisc=fmt((parseFloat(mp)-parseFloat(sp))/parseFloat(mp)*100);
+  const profitLoss=fmt((parseFloat(sp)-cp)/cp*100);
+  const sign=parseFloat(profitLoss)>=0?'Profit':'Loss';
+  const w1=fmt(Math.abs(parseFloat(profitLoss))+3),w2=fmt(markup-disc),w3=fmt(Math.abs(parseFloat(profitLoss))-3);
+  return{text:`CP=Rs.<strong>${cp}</strong>. MP is <strong>${markup}%</strong> above CP. Discount of <strong>${disc}%</strong> on MP. Profit/loss %?`,
+  opts:shuffle([`${fmt(Math.abs(parseFloat(profitLoss)))}% ${sign}`,`${w1}% ${sign}`,`${w2}% Profit`,`${w3}% ${sign}`]),
+  correct:`${fmt(Math.abs(parseFloat(profitLoss)))}% ${sign}`,
+  solution:`MP=${mp}. SP=${sp}. P/L%=(${sp}−${cp})/${cp}×100=<strong>${fmt(Math.abs(parseFloat(profitLoss)))}% ${sign}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Qty Comparison: successive vs single discount
+  const d1=pick([10,15,20,25]);const d2=pick([10,15,20]);
+  const single=d1+d2;const effective=fmt(d1+d2-d1*d2/100);
+  return{text:`<strong>Qty Comparison:</strong><br>Q1: Effective discount — successive ${d1}% then ${d2}%<br>Q2: Single flat discount of ${single}%`,
+  opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:'Q1 < Q2',
+  solution:`Q1=${effective}%, Q2=${single}%. Successive always less than sum. <strong>Q1 < Q2</strong>`,type:'Qty Comparison'}
+},
 ]},
 
 // ─────────────────── SI & CI ───────────────────
@@ -917,6 +1398,125 @@ const CHAPTERS = {
     opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
     solution:`${A}'s SI=${fmt(10000*pv(pe)*t/100)}, ${B}'s CI=${fmt(12000*(Math.pow(1+pv(pe)/100,t)-1))}. Need both to compare. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
+  ()=>{
+  // Alligation on interest rates: mix two investments for target avg rate
+  const r1=pickPct(PCT_SMALL);const r2=pickPct(PCT_SMALL.filter(p=>p[0]>pv(r1)+2));
+  const tgt=pickPct(PCT_SMALL.filter(p=>p[0]>pv(r1)&&p[0]<pv(r2)));
+  if(!tgt)return{text:`Fallback`,opts:['1:1','2:1','1:2','3:1'],correct:'1:1',solution:``,type:'MCQ'};
+  const rA=pv(r2)-pv(tgt);const rB=pv(tgt)-pv(r1);const g=gcd(rA,rB);
+  return{text:`Invest at <strong>${pv(r1)}%</strong> and <strong>${pv(r2)}%</strong> SI p.a. to get average return of <strong>${pv(tgt)}%</strong>. In what ratio?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation on rate: (${pv(r2)}−${pv(tgt)}):(${pv(tgt)}−${pv(r1)})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Weighted average interest earned
+  const p1=pick([10,15,20,25,30])*1000;
+  const p2=pick([10,15,20,25,30])*1000;
+  const r1=pickPct(PCT_SMALL);const r2=pickPct(PCT_SMALL.filter(p=>p[0]!==pv(r1)));
+  const t=pick([2,3,4]);
+  const int1=fmt(p1*pv(r1)*t/100);const int2=fmt(p2*pv(r2)*t/100);
+  const totalInt=fmt(parseFloat(int1)+parseFloat(int2));
+  const avgRate=fmt((parseFloat(totalInt))/((p1+p2)*t/100));
+  const w1=fmt(parseFloat(avgRate)+1),w2=fmt((pv(r1)+pv(r2))/2),w3=fmt(parseFloat(avgRate)-1);
+  return{text:`Rs.<strong>${p1.toLocaleString()}</strong> @ <strong>${pv(r1)}%</strong> and Rs.<strong>${p2.toLocaleString()}</strong> @ <strong>${pv(r2)}%</strong> SI for <strong>${t} yrs</strong>. Average interest rate?`,
+  opts:shuffle([`${avgRate}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${avgRate}%`,
+  solution:`Int1=${int1}, Int2=${int2}. Total=${totalInt}. Avg rate=${totalInt}/((${p1+p2})×${t}/100)=<strong>${avgRate}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: find amount to invest at each rate
+  const total=pick([20,30,40,50,60,80,100])*1000;
+  const r1=pickPct(PCT_SMALL);const r2=pickPct(PCT_SMALL.filter(p=>p[0]>pv(r1)+2));
+  const tgt=pickPct(PCT_SMALL.filter(p=>p[0]>pv(r1)&&p[0]<pv(r2)));
+  if(!tgt)return{text:`Fallback`,opts:[`${total/2}`,`${total/3}`,`${total/4}`,`${total}`],correct:`${total/2}`,solution:`Equal split`,type:'MCQ'};
+  const rA=pv(r2)-pv(tgt);const rB=pv(tgt)-pv(r1);const g=gcd(rA,rB);
+  const amtA=fmt(total*rA/(rA+rB));const amtB=fmt(total-parseFloat(amtA));
+  const w1=fmt(parseFloat(amtA)+1000),w2=fmt(parseFloat(amtA)-1000),w3=total/2;
+  return{text:`Rs.<strong>${total.toLocaleString()}</strong> split between <strong>${pv(r1)}%</strong> and <strong>${pv(r2)}%</strong> accounts to earn avg <strong>${pv(tgt)}%</strong>. Amount in lower-rate account?`,
+  opts:shuffle([amtA,fmt(w1),fmt(w2),fmt(w3)]),correct:amtA,
+  solution:`Alligation ratio ${rA/g}:${rB/g}. Lower-rate amt=(${rA/g}/${(rA+rB)/g})×${total}=<strong>Rs.${amtA}</strong>`,type:'MCQ'}
+},
+  ()=>{
+  // Instalments — SI based
+  const loan=pick([2000,3000,4000,5000,6000,8000,10000]);
+  const r=pick([5,8,10,12,15,20]);const n=pick([2,3,4]);
+  const instalment=fmt(loan*(1+r*n/100)/n);
+  const w1=fmt(parseFloat(instalment)+100),w2=fmt(loan/n),w3=fmt(parseFloat(instalment)-100);
+  return{text:`Rs.<strong>${loan}</strong> borrowed at <strong>${r}%</strong> SI p.a. Repaid in <strong>${n}</strong> equal annual instalments. Each instalment?`,
+  opts:shuffle([instalment,w1,w2,w3]),correct:instalment,
+  solution:`Total = P(1+RT/100) = ${loan}×(1+${r}×${n}/100) = ${fmt(loan*(1+r*n/100))}. Each = /${n} = <strong>Rs.${instalment}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Instalments — CI based (2 years)
+  const r=pick([10,20,25]);const n=2;
+  const instalment=pick([1210,2420,3630,4840,6050,12100]);
+  const pv=fmt(instalment/(1+r/100)+instalment/Math.pow(1+r/100,2));
+  const w1=fmt(parseFloat(pv)+200),w2=fmt(instalment*n/(1+r/100)),w3=fmt(parseFloat(pv)-200);
+  return{text:`A loan is repaid in <strong>2 equal annual instalments</strong> of Rs.<strong>${instalment}</strong> each at <strong>${r}%</strong> CI. Loan amount?`,
+  opts:shuffle([pv,w1,w2,w3]),correct:pv,
+  solution:`PV = ${instalment}/(1+${r}/100) + ${instalment}/(1+${r}/100)² = <strong>Rs.${pv}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Population growth
+  const city=rnd(CITIES);const pop=pick([50000,80000,100000,120000,150000,200000,250000]);
+  const r=pick([5,8,10,12,20]);const n=pick([2,3]);
+  const finalPop=fmt(pop*Math.pow(1+r/100,n));
+  const w1=fmt(pop*(1+r*n/100)),w2=fmt(parseFloat(finalPop)+1000),w3=fmt(parseFloat(finalPop)-1000);
+  return{text:`Population of <strong>${city}</strong> = <strong>${pop.toLocaleString()}</strong>. Growth rate = <strong>${r}%</strong> p.a. Population after <strong>${n} years</strong>?`,
+  opts:shuffle([finalPop,w1,w2,w3]),correct:finalPop,
+  solution:`Pop = ${pop}×(1+${r}/100)^${n} = ${pop}×${fmt(Math.pow(1+r/100,n))} = <strong>${finalPop}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Population decay
+  const city=rnd(CITIES);const pop=pick([50000,80000,100000,120000,150000,200000]);
+  const r=pick([5,8,10,12,20]);const n=pick([2,3]);
+  const finalPop=fmt(pop*Math.pow(1-r/100,n));
+  const w1=fmt(pop*(1-r*n/100)),w2=fmt(parseFloat(finalPop)+500),w3=fmt(parseFloat(finalPop)-500);
+  return{text:`Population of <strong>${city}</strong> = <strong>${pop.toLocaleString()}</strong>. Declining at <strong>${r}%</strong> p.a. Population after <strong>${n} years</strong>?`,
+  opts:shuffle([finalPop,w1,w2,w3]),correct:finalPop,
+  solution:`Pop = ${pop}×(1−${r}/100)^${n} = ${pop}×${fmt(Math.pow(1-r/100,n))} = <strong>${finalPop}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Depreciation of machinery
+  const cost=pick([50000,80000,100000,120000,150000,200000]);
+  const r=pick([5,8,10,12,20]);const n=pick([2,3]);
+  const value=fmt(cost*Math.pow(1-r/100,n));
+  const dep=fmt(cost-parseFloat(value));
+  const w1=fmt(cost*(1-r*n/100)),w2=fmt(parseFloat(value)+2000),w3=fmt(parseFloat(value)-2000);
+  return{text:`Machine bought for Rs.<strong>${cost.toLocaleString()}</strong>. Depreciates at <strong>${r}%</strong> p.a. Value after <strong>${n} years</strong>?`,
+  opts:shuffle([value,w1,w2,w3]),correct:value,
+  solution:`Value = ${cost}×(1−${r}/100)^${n} = ${cost}×${fmt(Math.pow(1-r/100,n))} = <strong>Rs.${value}</strong>. Total depreciation = Rs.${dep}`,type:'MCQ'}
+},
+()=>{
+  // Rate finding — SI: P, A, T given
+  const[A]=twoNames();const p=pick([5,8,10,12,15,20])*1000;
+  const t=pick([2,3,4,5]);const r=pick([5,8,10,12,15]);
+  const amount=fmt(p*(1+r*t/100));
+  const w1=r+2,w2=r-2,w3=fmt((parseFloat(amount)-p)/p*100);
+  return{text:`<strong>${A}</strong> invests Rs.<strong>${p.toLocaleString()}</strong>. Amount after <strong>${t} years</strong> (SI) = Rs.<strong>${amount}</strong>. Rate of interest?`,
+  opts:shuffle([`${r}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${r}%`,
+  solution:`SI = A−P = ${amount}−${p} = ${fmt(parseFloat(amount)-p)}. R = SI×100/(P×T) = ${fmt(parseFloat(amount)-p)}×100/(${p}×${t}) = <strong>${r}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Rate finding — CI: P and A given for 2 years
+  const p=pick([10000,12500,16000,20000,25000]);
+  const r=pick([4,5,10,20,25]);
+  const a=fmt(p*Math.pow(1+r/100,2));
+  const w1=r+2,w2=r-2,w3=fmt(Math.sqrt(parseFloat(a)/p)-1)*100;
+  return{text:`Rs.<strong>${p.toLocaleString()}</strong> becomes Rs.<strong>${a}</strong> in <strong>2 years</strong> at CI. Rate of interest?`,
+  opts:shuffle([`${r}%`,`${w1}%`,`${w2}%`,`${fmt(r+1)}%`]),correct:`${r}%`,
+  solution:`(1+R/100)² = ${a}/${p} = ${fmt(parseFloat(a)/p)}. (1+R/100) = ${fmt(Math.sqrt(parseFloat(a)/p))}. R = <strong>${r}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Instalment with CI — find number of years
+  const r=pick([10,20,25]);const loan=pick([3000,4000,5000,6000,8000,10000]);
+  const n=pick([2,3]);
+  const instalment=fmt(loan*Math.pow(1+r/100,n)*r/100/(Math.pow(1+r/100,n)-1));
+  const w1=fmt(parseFloat(instalment)+100),w2=fmt(parseFloat(instalment)-100),w3=fmt(loan/n);
+  return{text:`Loan of Rs.<strong>${loan}</strong> at <strong>${r}%</strong> CI. Repaid in <strong>${n}</strong> equal annual instalments. Find instalment amount.`,
+  opts:shuffle([instalment,w1,w2,w3]),correct:instalment,
+  solution:`Instalment = P×r(1+r)^n/((1+r)^n−1) where r=${r}/100. = <strong>Rs.${instalment}</strong>`,type:'MCQ'}
+},
 ]},
 
 // ─────────────────── TIME & WORK ───────────────────
@@ -1009,6 +1609,174 @@ const CHAPTERS = {
     opts:shuffle([tog,w1,w2,w3]),correct:tog,
     solution:`${A} is faster: ${A} takes ${da} days. Together=${da}×${db}/(${da}+${db})=<strong>${tog} days</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation on price to find mixing ratio
+  const cheap=pick([20,25,30,40,50,60]);
+  const exp=cheap+pick([20,30,40,50,60,80]);
+  const tgt=rndN(cheap+5,exp-5);
+  const rA=exp-tgt;const rB=tgt-cheap;const g=gcd(rA,rB);
+  const w1=`${rA/g+1}:${rB/g}`,w2=`${rA/g}:${rB/g+1}`,w3=`${rB/g}:${rA/g}`;
+  return{text:`Mix tea at Rs.<strong>${cheap}/kg</strong> with tea at Rs.<strong>${exp}/kg</strong> to sell at Rs.<strong>${tgt}/kg</strong> with no profit/loss. Ratio?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,w1,w2,w3]),correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation: (${exp}−${tgt}):(${tgt}−${cheap})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation on concentration: reverse — find ratio
+  const c1=pick([10,15,20,25,30,40]);
+  const c2=pick([60,70,75,80,90,100]);
+  const tgt=rndN(c1+10,c2-10);
+  const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+  return{text:`A <strong>${c1}%</strong> sugar solution mixed with a <strong>${c2}%</strong> solution to get <strong>${tgt}%</strong>. Ratio of first to second?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation: (${c2}−${tgt}):(${tgt}−${c1})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation with actual quantities: find total when one part is known
+  const c1=pick([10,20,25,30]);const c2=pick([60,70,75,80,100]);
+  const tgt=rndN(c1+10,c2-10);
+  const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+  const qty1=(rA/g)*pick([5,10,15,20]);const qty2=qty1*(rB/rA);
+  const w1=qty2+10,w2=Math.max(1,qty2-10),w3=qty2*2;
+  return{text:`<strong>${qty1}L</strong> of <strong>${c1}%</strong> solution mixed with some amount of <strong>${c2}%</strong> to get <strong>${tgt}%</strong>. Second amount?`,
+  opts:shuffle([qty2,w1,w2,w3]),correct:qty2,
+  solution:`Alligation ratio ${rA/g}:${rB/g}. ${qty1}L→${rA/g} parts. So 1 part=${qty1/(rA/g)}L. Second=${rB/g}×${qty1/(rA/g)}=<strong>${qty2}L</strong>`,type:'MCQ'}
+},
+()=>{
+  // Three-component alligation (mean value)
+  const c1=pick([10,15,20]);const c2=pick([40,50,60]);const c3=pick([80,90,100]);
+  const n1=pick([1,2,3]);const n2=pick([1,2,3]);const n3=pick([1,2,3]);
+  const avg=fmt((c1*n1+c2*n2+c3*n3)/(n1+n2+n3));
+  const w1=fmt(parseFloat(avg)+5),w2=fmt((c1+c2+c3)/3),w3=fmt(parseFloat(avg)-5);
+  return{text:`Mix <strong>${n1}L@${c1}%</strong>, <strong>${n2}L@${c2}%</strong>, <strong>${n3}L@${c3}%</strong> solutions. Resulting concentration?`,
+  opts:shuffle([`${avg}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${avg}%`,
+  solution:`Weighted avg=(${n1}×${c1}+${n2}×${c2}+${n3}×${c3})/(${n1+n2+n3})=${fmt(c1*n1+c2*n2+c3*n3)}/${n1+n2+n3}=<strong>${avg}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: find price of mixture
+  const price1=pick([30,40,50,60,80]);const price2=price1+pick([20,30,40,50]);
+  const qty1=pick([3,4,5,6,8,10]);const qty2=pick([2,3,4,5,6]);
+  const avgPrice=fmt((price1*qty1+price2*qty2)/(qty1+qty2));
+  const w1=fmt(parseFloat(avgPrice)+3),w2=fmt((price1+price2)/2),w3=fmt(parseFloat(avgPrice)-3);
+  return{text:`<strong>${qty1}kg</strong> of item @ Rs.<strong>${price1}/kg</strong> mixed with <strong>${qty2}kg</strong> @ Rs.<strong>${price2}/kg</strong>. Price per kg of mixture?`,
+  opts:shuffle([avgPrice,w1,w2,w3]),correct:avgPrice,
+  solution:`Avg=(${qty1}×${price1}+${qty2}×${price2})/(${qty1+qty2})=${fmt(price1*qty1+price2*qty2)}/${qty1+qty2}=<strong>Rs.${avgPrice}/kg</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation with profit target
+  const buy1=pick([20,25,30,40,50]);const buy2=pick([60,70,80,90,100]);
+  const sell=rndN(buy1+5,buy2-5);
+  const rA=buy2-sell;const rB=sell-buy1;const g=gcd(rA,rB);
+  const tot=(rA/g+rB/g)*pick([5,10,15,20]);
+  const qty1=tot*rA/(rA+rB);const qty2=tot-qty1;
+  const w1=qty1+5,w2=Math.max(1,qty1-5),w3=tot/2;
+  return{text:`Mix items costing Rs.<strong>${buy1}</strong> and Rs.<strong>${buy2}</strong>. Sell <strong>${tot}kg</strong> total @ Rs.<strong>${sell}/kg</strong> at exact cost. Qty of cheaper item?`,
+  opts:shuffle([qty1,w1,w2,w3]),correct:qty1,
+  solution:`Alligation ratio ${rA/g}:${rB/g}. Cheaper qty=(${rA/g}/${rA/g+rB/g})×${tot}=<strong>${qty1}kg</strong>`,type:'MCQ'}
+},
+()=>{
+  // Data Sufficiency with alligation
+  const c1=pick([20,25,30,40]);const c2=pick([60,70,75,80]);
+  const tgt=rndN(c1+5,c2-5);
+  const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+  return{text:`<strong>Data Sufficiency:</strong> Find ratio to mix two solutions for ${tgt}% concentration.<br><strong>I:</strong> First solution is ${c1}%.<br><strong>II:</strong> Second solution is ${c2}%.`,
+  opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
+  solution:`Alligation needs both concentrations. Ratio=${rA/g}:${rB/g}. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+},
+  ()=>{
+  // Wages proportional to work done
+  const[A,B]=twoNames();const da=pick([6,8,10,12,15]);const db=pick([8,10,12,15,20]);
+  const totalWage=pick([100,120,150,180,200,240,300,360,400,450,600])*Math.round((da+db)/gcd(da,db));
+  const rateA=1/da;const rateB=1/db;const total=rateA+rateB;
+  const aWage=fmt(totalWage*rateA/total);const bWage=fmt(totalWage-parseFloat(aWage));
+  const w1=fmt(parseFloat(aWage)+20),w2=fmt(totalWage/2),w3=fmt(parseFloat(aWage)-20);
+  return{text:`<strong>${A}</strong> (${da}d) and <strong>${B}</strong> (${db}d) work together. Total wages Rs.<strong>${totalWage}</strong>. ${A}'s share?`,
+  opts:shuffle([aWage,w1,w2,w3]),correct:aWage,
+  solution:`Ratio of work = 1/${da}:1/${db} = ${db}:${da}. ${A}'s wage = (${db}/${da+db})×${totalWage} = <strong>Rs.${aWage}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Work done in alternate days
+  const[A,B]=twoNames();const da=pick([6,8,10,12,15,18,20]);const db=pick([8,10,12,15,18,20,24]);
+  const lcmDays=lcm_f(da,db);
+  const workPerCycle=1/da+1/db;
+  const cycles=Math.floor(1/workPerCycle/2);
+  const remaining=fmt(1-cycles*2*workPerCycle);
+  // Find total days
+  const totalDays=fmt(cycles*2+(parseFloat(remaining)>0?parseFloat(remaining)*da:0));
+  const w1=fmt(parseFloat(totalDays)+1),w2=fmt(da*db/(da+db)),w3=fmt(parseFloat(totalDays)-1);
+  return{text:`<strong>${A}</strong>(${da}d) and <strong>${B}</strong>(${db}d) work on <strong>alternate days</strong>, ${A} starts. Total days to finish?`,
+  opts:shuffle([totalDays,w1,w2,w3]),correct:totalDays,
+  solution:`Per 2-day cycle: 1/${da}+1/${db}=${fmt(workPerCycle)}. After ${cycles*2} days: done=${fmt(cycles*2*workPerCycle)}. Remaining=${remaining} done by ${A} on day ${cycles*2+1}. Total=<strong>${totalDays} days</strong>`,type:'MCQ'}
+},
+()=>{
+  // Pipe with leak
+  const fillTime=pick([6,8,10,12,15,18,20,24]);
+  const leakTime=pick([20,24,30,36,40,48,60]);
+  const net=1/fillTime-1/leakTime;
+  if(net<=0)return{text:`Pipe never fills with this leak`,opts:['Never fills','10h','20h','30h'],correct:'Never fills',solution:`Leak rate > fill rate`,type:'MCQ'};
+  const time=fmt(1/net);
+  const w1=fmt(parseFloat(time)+2),w2=fillTime,w3=fmt(parseFloat(time)-2);
+  return{text:`A pipe fills a tank in <strong>${fillTime} hours</strong>. A leak empties it in <strong>${leakTime} hours</strong>. With both, time to fill?`,
+  opts:shuffle([time,w1,w2,w3]),correct:time,
+  solution:`Net rate = 1/${fillTime}−1/${leakTime} = ${fmt(net)}. Time = 1/${fmt(net)} = <strong>${time} hours</strong>`,type:'MCQ'}
+},
+()=>{
+  // Find leak time given fill time with and without leak
+  const noLeak=pick([6,8,10,12,15,18,20]);
+  const withLeak=pick([10,12,15,18,20,24,30]).valueOf();
+  if(withLeak<=noLeak)return{text:`Leak fallback`,opts:['20h','30h','40h','60h'],correct:'30h',solution:``,type:'MCQ'};
+  const leakTime=fmt(noLeak*withLeak/(withLeak-noLeak));
+  const w1=fmt(parseFloat(leakTime)+5),w2=fmt(parseFloat(leakTime)-5),w3=noLeak+withLeak;
+  return{text:`Pipe fills tank in <strong>${noLeak}h</strong>. With a leak it takes <strong>${withLeak}h</strong>. Leak alone empties in?`,
+  opts:shuffle([`${leakTime}h`,`${w1}h`,`${w2}h`,`${w3}h`]),correct:`${leakTime}h`,
+  solution:`Leak rate = 1/${noLeak}−1/${withLeak} = ${fmt(1/noLeak-1/withLeak)}. Leak time = <strong>${leakTime}h</strong>`,type:'MCQ'}
+},
+()=>{
+  // Efficiency with fractions — A does fraction of work per day
+  const[A,B]=twoNames();const numA=pick([1,2,3]);const denA=pick([8,10,12,15,20]);
+  const numB=pick([1,2,3]);const denB=pick([10,12,15,18,20,24]);
+  const rateA=numA/denA;const rateB=numB/denB;
+  const time=fmt(1/(rateA+rateB));
+  const w1=fmt(parseFloat(time)+1),w2=fmt(1/rateA),w3=fmt(parseFloat(time)-1);
+  return{text:`<strong>${A}</strong> completes <strong>${numA}/${denA}</strong> of work per day. <strong>${B}</strong> completes <strong>${numB}/${denB}</strong> per day. Together in?`,
+  opts:shuffle([`${time} days`,`${w1} days`,`${w2} days`,`${w3} days`]),correct:`${time} days`,
+  solution:`Combined rate = ${numA}/${denA}+${numB}/${denB} = ${fmt(rateA+rateB)}. Days = 1/${fmt(rateA+rateB)} = <strong>${time} days</strong>`,type:'MCQ'}
+},
+()=>{
+  // Three people, wages split by efficiency
+  const[A,B,C]=threeNames();const da=pick([4,5,6,8,10]);const db=pick([6,8,10,12,15]);const dc=pick([8,10,12,15,20]);
+  const totalWage=(da*db*dc)*pick([1,2,3,4,5]);
+  const rA=1/da;const rB=1/db;const rC=1/dc;const tot=rA+rB+rC;
+  const cWage=fmt(totalWage*rC/tot);
+  const w1=fmt(parseFloat(cWage)+totalWage/(da+db+dc)),w2=fmt(totalWage/3),w3=fmt(parseFloat(cWage)-totalWage/(da+db+dc));
+  return{text:`<strong>${A}</strong>(${da}d), <strong>${B}</strong>(${db}d), <strong>${C}</strong>(${dc}d) work together. Total wages Rs.<strong>${totalWage}</strong>. <strong>${C}'s</strong> wage?`,
+  opts:shuffle([cWage,w1,w2,w3]),correct:cWage,
+  solution:`Work ratio = 1/${da}:1/${db}:1/${dc}. ${C}'s share = (1/${dc}/${fmt(tot)})×${totalWage} = <strong>Rs.${cWage}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Work done in alternate days starting with stronger worker
+  const[A,B]=twoNames();const da=pick([4,6,8,10,12]);const db=da*pick([2,3,4]);
+  const workPerCycle=1/da+1/db;
+  const fullCycles=Math.floor(0.5/workPerCycle);
+  const remaining=1-fullCycles*2*workPerCycle;
+  const extraDays=remaining>1/da?1+fmt((remaining-1/da)*db):fmt(remaining*da);
+  const total=fmt(fullCycles*2+parseFloat(extraDays));
+  const w1=fmt(parseFloat(total)+1),w2=fmt(da*db/(da+db)),w3=fmt(parseFloat(total)-1);
+  return{text:`<strong>${A}</strong>(${da}d), <strong>${B}</strong>(${db}d). Work alternate days, <strong>${A} starts</strong>. Total days to complete?`,
+  opts:shuffle([total,w1,w2,w3]),correct:total,
+  solution:`2-day cycle work=${fmt(workPerCycle)}. Full cycles=${fullCycles}. Remaining=${fmt(remaining)}. Total=<strong>${total} days</strong>`,type:'MCQ'}
+},
+()=>{
+  // Qty Comparison — wages
+  const[A,B]=twoNames();const da=pick([6,8,10,12]);const db=pick([8,10,12,15]);
+  const wage=pick([100,150,200,240,300,360,480])*lcm_f(da,db);
+  const rA=1/da;const rB=1/db;const tot=rA+rB;
+  const aW=fmt(wage*rA/tot);const bW=fmt(wage*rB/tot);
+  const rel=parseFloat(aW)>parseFloat(bW)?'Q1 > Q2':'Q1 < Q2';
+  return{text:`<strong>Qty Comparison:</strong> ${A}(${da}d), ${B}(${db}d) work together. Wages Rs.${wage}.<br>Q1: ${A}'s wage &nbsp; Q2: ${B}'s wage`,
+  opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
+  solution:`Q1=${aW}, Q2=${bW}. Faster worker earns more. <strong>${rel}</strong>`,type:'Qty Comparison'}
+},
 ]},
 
 // ─────────────────── TSD ───────────────────
@@ -1093,6 +1861,137 @@ const CHAPTERS = {
     opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
     solution:`Need train length AND platform length. Time=(${len}+200)/${fmt(s*5/18)}=<strong>${fmt((len+200)/(s*5/18))} sec</strong>. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
   },
+  ()=>{
+  // Alligation on speed: find ratio of time spent at two speeds
+  const s1=pick([40,45,50,54,60]);const s2=s1+pick([20,24,30,36]);
+  const avgS=rndN(s1+5,s2-5);
+  const rA=s2-avgS;const rB=avgS-s1;const g=gcd(rA,rB);
+  return{text:`A vehicle travels partly at <strong>${s1} km/h</strong> and partly at <strong>${s2} km/h</strong>. Average speed = <strong>${avgS} km/h</strong>. Ratio of time at each speed?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${s1}:${s2}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation on speed: (${s2}−${avgS}):(${avgS}−${s1})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: find distance split for given avg speed
+  const s1=pick([30,36,40,45,54]);const s2=s1+pick([18,24,30,36]);
+  const avgS=rndN(s1+5,s2-5);
+  const rA=s2-avgS;const rB=avgS-s1;const g=gcd(rA,rB);
+  const totalD=(rA/g+rB/g)*pick([30,40,50,60]);
+  const d1=totalD*rA/(rA+rB);const d2=totalD-d1;
+  const w1=d1+10,w2=Math.max(1,d1-10),w3=totalD/2;
+  return{text:`Total journey <strong>${totalD} km</strong>. Avg speed <strong>${avgS} km/h</strong>. Travelled at <strong>${s1}</strong> and <strong>${s2} km/h</strong>. Distance at slower speed?`,
+  opts:shuffle([d1,w1,w2,w3]),correct:d1,
+  solution:`Alligation time ratio ${rA/g}:${rB/g}. At same time ratio: d∝speed. d1=(${rA/g}×${s1})/(${rA/g}×${s1}+${rB/g}×${s2})×${totalD}=<strong>${d1} km</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: upstream/downstream avg speed
+  const boat=pick([10,12,15,18,20]);const stream=pick([2,3,4,5]);
+  const up=boat-stream;const dn=boat+stream;
+  const d=pick([60,80,90,100,120]);
+  const avgSpd=fmt(2*up*dn/(up+dn));
+  const w1=fmt(parseFloat(avgSpd)+2),w2=boat,w3=fmt(parseFloat(avgSpd)-2);
+  return{text:`Boat speed <strong>${boat} km/h</strong>, stream <strong>${stream} km/h</strong>. Travels <strong>${d} km</strong> each way (up+down). Average speed for full journey?`,
+  opts:shuffle([avgSpd,fmt(w1),fmt(boat),fmt(w3)]),correct:avgSpd,
+  solution:`Avg speed = 2×(up×dn)/(up+dn) = 2×${up}×${dn}/${up+dn} = <strong>${avgSpd} km/h</strong> (harmonic mean, alligation principle)`,type:'MCQ'}
+},
+  ()=>{
+  // Circular track — same direction meeting
+  const circum=pick([600,800,1000,1200,1500,1800]);
+  const s1=pick([4,5,6,8,10,12]);const s2=pick([2,3,4,5,6]);
+  if(s1<=s2)return{text:`Speed problem`,opts:['100s','200s','300s','400s'],correct:'100s',solution:``,type:'MCQ'};
+  const time=fmt(circum/(s1-s2));
+  const w1=fmt(parseFloat(time)+circum/(s1+s2)),w2=fmt(circum/(s1+s2)),w3=fmt(parseFloat(time)+50);
+  return{text:`Two runners on circular track of <strong>${circum}m</strong>. Speeds <strong>${s1} m/s</strong> and <strong>${s2} m/s</strong> — <strong>same direction</strong>. When do they first meet?`,
+  opts:shuffle([`${time}s`,`${w1}s`,`${w2}s`,`${w3}s`]),correct:`${time}s`,
+  solution:`Relative speed = ${s1}−${s2} = ${s1-s2} m/s. Time = ${circum}/${s1-s2} = <strong>${time}s</strong>`,type:'MCQ'}
+},
+()=>{
+  // Circular track — opposite direction meeting
+  const circum=pick([400,500,600,800,1000,1200]);
+  const s1=pick([4,5,6,8,10]);const s2=pick([2,3,4,5,6,8]);
+  const time=fmt(circum/(s1+s2));
+  const w1=fmt(circum/(s1-s2||1)),w2=fmt(parseFloat(time)+20),w3=fmt(parseFloat(time)-10);
+  return{text:`Two people on circular track of <strong>${circum}m</strong>. Speeds <strong>${s1} m/s</strong> and <strong>${s2} m/s</strong> — <strong>opposite directions</strong>. Time to first meet?`,
+  opts:shuffle([`${time}s`,`${w1}s`,`${w2}s`,`${w3}s`]),correct:`${time}s`,
+  solution:`Relative speed = ${s1}+${s2} = ${s1+s2} m/s. Time = ${circum}/${s1+s2} = <strong>${time}s</strong>`,type:'MCQ'}
+},
+()=>{
+  // Circular track — how many times they meet
+  const circum=pick([400,600,800,1000,1200]);
+  const s1=pick([4,5,6,8,10]);const s2=pick([2,3,4,5]);
+  if(s1<=s2)return{text:`Track fallback`,opts:['2','3','4','5'],correct:'3',solution:``,type:'MCQ'};
+  const totalTime=pick([600,900,1200,1800,2400]);
+  const meetings=Math.floor(totalTime*(s1-s2)/circum);
+  const w1=meetings+1,w2=meetings-1,w3=Math.floor(totalTime*(s1+s2)/circum);
+  return{text:`Circular track <strong>${circum}m</strong>. Speeds <strong>${s1} m/s</strong> & <strong>${s2} m/s</strong>, same direction. In <strong>${totalTime}s</strong>, how many times does faster lap slower?`,
+  opts:shuffle([meetings,w1,w2,w3]),correct:meetings,
+  solution:`Meetings = ⌊${totalTime}×(${s1}−${s2})/${circum}⌋ = ⌊${totalTime*(s1-s2)/${circum}}⌋ = <strong>${meetings}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Train crossing a walking person — same direction
+  const trainLen=pick([100,120,150,180,200,240]);
+  const trainSpd=pick([54,60,66,72,80,90]);// km/h
+  const personSpd=pick([3,4,5,6]);// km/h
+  const relSpd=(trainSpd-personSpd)*5/18;
+  const time=fmt(trainLen/relSpd);
+  const time_opp=fmt(trainLen/((trainSpd+personSpd)*5/18));
+  const w1=fmt(parseFloat(time)+3),w2=fmt(trainLen/(trainSpd*5/18)),w3=fmt(parseFloat(time)-3);
+  return{text:`Train (<strong>${trainLen}m</strong>, <strong>${trainSpd} km/h</strong>) overtakes a person walking at <strong>${personSpd} km/h</strong> in same direction. Time to cross?`,
+  opts:shuffle([time,w1,w2,w3]),correct:time,
+  solution:`Relative speed = (${trainSpd}−${personSpd})×5/18 = ${fmt(relSpd)} m/s. Time = ${trainLen}/${fmt(relSpd)} = <strong>${time}s</strong>`,type:'MCQ'}
+},
+()=>{
+  // Train crossing a walking person — opposite direction
+  const trainLen=pick([100,120,150,180,200,240]);
+  const trainSpd=pick([54,60,66,72,80,90]);
+  const personSpd=pick([3,4,5,6]);
+  const relSpd=(trainSpd+personSpd)*5/18;
+  const time=fmt(trainLen/relSpd);
+  const w1=fmt(parseFloat(time)+2),w2=fmt(trainLen/(trainSpd*5/18)),w3=fmt(parseFloat(time)-2);
+  return{text:`Train (<strong>${trainLen}m</strong>, <strong>${trainSpd} km/h</strong>) meets a person walking at <strong>${personSpd} km/h</strong> in opposite direction. Time to pass?`,
+  opts:shuffle([time,w1,w2,w3]),correct:time,
+  solution:`Relative speed = (${trainSpd}+${personSpd})×5/18 = ${fmt(relSpd)} m/s. Time = ${trainLen}/${fmt(relSpd)} = <strong>${time}s</strong>`,type:'MCQ'}
+},
+()=>{
+  // Escalator — going up
+  const escalatorSteps=pick([40,48,50,60,72,80]);
+  const escalatorSpeed=pick([1,2,3,4]);// steps per sec
+  const personSpeed=pick([2,3,4,5,6]);// steps per sec
+  const time=fmt(escalatorSteps/(escalatorSpeed+personSpeed));
+  const stepsPersonTakes=fmt(personSpeed*parseFloat(time));
+  const w1=fmt(parseFloat(stepsPersonTakes)+4),w2=fmt(escalatorSteps/personSpeed),w3=fmt(parseFloat(stepsPersonTakes)-4);
+  return{text:`Escalator moves at <strong>${escalatorSpeed} steps/sec</strong>. Person walks at <strong>${personSpeed} steps/sec</strong> (same direction). Escalator has <strong>${escalatorSteps} steps</strong>. Steps taken by person?`,
+  opts:shuffle([stepsPersonTakes,w1,w2,w3]),correct:stepsPersonTakes,
+  solution:`Time = ${escalatorSteps}/(${escalatorSpeed}+${personSpeed}) = ${time}s. Person takes ${personSpeed}×${time} = <strong>${stepsPersonTakes} steps</strong>`,type:'MCQ'}
+},
+()=>{
+  // Escalator — find escalator speed
+  const stepsWalking=pick([24,30,36,40,48]);// steps person takes going up
+  const stepsBrisk=pick([16,18,20,24,30]);// steps at double speed
+  if(stepsWalking<=stepsBrisk)return{text:`Escalator fallback`,opts:['1','2','3','4'],correct:'2',solution:``,type:'MCQ'};
+  // s1*t1=s2*t2=total, person steps ratio determines escalator speed
+  const escalatorSteps=fmt(stepsWalking*stepsBrisk/(stepsWalking-stepsBrisk)*1);
+  // Simpler: let person speed=v, escalator=e. v*t1=sw, (v+e)*t1=total
+  const personSpd=pick([2,3,4]);const escSpd=pick([1,2,3]);
+  const total=escalatorSteps;
+  const timeNormal=parseFloat(total)/personSpd/escSpd;// placeholder
+  const w1=escSpd+1,w2=escSpd-1,w3=escSpd+2;
+  return{text:`Person takes <strong>${stepsWalking} steps</strong> going up. If he doubles speed, takes <strong>${stepsBrisk} steps</strong>. Total steps on escalator?`,
+  opts:shuffle([fmt(escalatorSteps),fmt(parseFloat(escalatorSteps)+6),fmt(parseFloat(escalatorSteps)-6),fmt(parseFloat(escalatorSteps)+12)]),
+  correct:fmt(escalatorSteps),
+  solution:`Let escalator speed=e, person speed=v. v×t1=${stepsWalking}, 2v×t2=${stepsBrisk}, (v+e)×t1=(2v+e)×t2=total. Solving: total=<strong>${fmt(escalatorSteps)}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Meeting point problem — two people walking toward each other
+  const[A,B]=twoNames();const dist=pick([100,120,150,180,200,240,300]);
+  const sA=pick([4,5,6,8,10]);const sB=pick([3,4,5,6,8]);
+  const meetTime=fmt(dist/(sA+sB));
+  const distA=fmt(sA*parseFloat(meetTime));const distB=fmt(sB*parseFloat(meetTime));
+  const w1=fmt(parseFloat(distA)+10),w2=fmt(dist/2),w3=fmt(parseFloat(distA)-10);
+  return{text:`<strong>${A}</strong> and <strong>${B}</strong> start from opposite ends of <strong>${dist}m</strong> road at <strong>${sA} m/s</strong> and <strong>${sB} m/s</strong>. Distance from <strong>${A}'s</strong> start when they meet?`,
+  opts:shuffle([distA,w1,w2,w3]),correct:distA,
+  solution:`Meet time = ${dist}/(${sA}+${sB}) = ${meetTime}s. ${A} covers ${sA}×${meetTime} = <strong>${distA}m</strong>`,type:'MCQ'}
+},
 ]},
 
 // ─────────────────── MIXTURES ───────────────────
@@ -1196,6 +2095,80 @@ const CHAPTERS = {
     opts:shuffle([`${mR}:${wR}`,`${mR+1}:${wR}`,`${mR}:${wR+1}`,`${mR-1}:${wR+1}`]),correct:`${mR}:${wR}`,
     solution:`Milk≈${milk}L, Water≈${water}L. Ratio≈<strong>${mR}:${wR}</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation on price to find mixing ratio
+  const cheap=pick([20,25,30,40,50,60]);
+  const exp=cheap+pick([20,30,40,50,60,80]);
+  const tgt=rndN(cheap+5,exp-5);
+  const rA=exp-tgt;const rB=tgt-cheap;const g=gcd(rA,rB);
+  const w1=`${rA/g+1}:${rB/g}`,w2=`${rA/g}:${rB/g+1}`,w3=`${rB/g}:${rA/g}`;
+  return{text:`Mix tea at Rs.<strong>${cheap}/kg</strong> with tea at Rs.<strong>${exp}/kg</strong> to sell at Rs.<strong>${tgt}/kg</strong> with no profit/loss. Ratio?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,w1,w2,w3]),correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation: (${exp}−${tgt}):(${tgt}−${cheap})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation on concentration: reverse — find ratio
+  const c1=pick([10,15,20,25,30,40]);
+  const c2=pick([60,70,75,80,90,100]);
+  const tgt=rndN(c1+10,c2-10);
+  const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+  return{text:`A <strong>${c1}%</strong> sugar solution mixed with a <strong>${c2}%</strong> solution to get <strong>${tgt}%</strong>. Ratio of first to second?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${rA/g}:${rB/g+1}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation: (${c2}−${tgt}):(${tgt}−${c1})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation with actual quantities: find total when one part is known
+  const c1=pick([10,20,25,30]);const c2=pick([60,70,75,80,100]);
+  const tgt=rndN(c1+10,c2-10);
+  const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+  const qty1=(rA/g)*pick([5,10,15,20]);const qty2=qty1*(rB/rA);
+  const w1=qty2+10,w2=Math.max(1,qty2-10),w3=qty2*2;
+  return{text:`<strong>${qty1}L</strong> of <strong>${c1}%</strong> solution mixed with some amount of <strong>${c2}%</strong> to get <strong>${tgt}%</strong>. Second amount?`,
+  opts:shuffle([qty2,w1,w2,w3]),correct:qty2,
+  solution:`Alligation ratio ${rA/g}:${rB/g}. ${qty1}L→${rA/g} parts. So 1 part=${qty1/(rA/g)}L. Second=${rB/g}×${qty1/(rA/g)}=<strong>${qty2}L</strong>`,type:'MCQ'}
+},
+()=>{
+  // Three-component alligation (mean value)
+  const c1=pick([10,15,20]);const c2=pick([40,50,60]);const c3=pick([80,90,100]);
+  const n1=pick([1,2,3]);const n2=pick([1,2,3]);const n3=pick([1,2,3]);
+  const avg=fmt((c1*n1+c2*n2+c3*n3)/(n1+n2+n3));
+  const w1=fmt(parseFloat(avg)+5),w2=fmt((c1+c2+c3)/3),w3=fmt(parseFloat(avg)-5);
+  return{text:`Mix <strong>${n1}L@${c1}%</strong>, <strong>${n2}L@${c2}%</strong>, <strong>${n3}L@${c3}%</strong> solutions. Resulting concentration?`,
+  opts:shuffle([`${avg}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${avg}%`,
+  solution:`Weighted avg=(${n1}×${c1}+${n2}×${c2}+${n3}×${c3})/(${n1+n2+n3})=${fmt(c1*n1+c2*n2+c3*n3)}/${n1+n2+n3}=<strong>${avg}%</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: find price of mixture
+  const price1=pick([30,40,50,60,80]);const price2=price1+pick([20,30,40,50]);
+  const qty1=pick([3,4,5,6,8,10]);const qty2=pick([2,3,4,5,6]);
+  const avgPrice=fmt((price1*qty1+price2*qty2)/(qty1+qty2));
+  const w1=fmt(parseFloat(avgPrice)+3),w2=fmt((price1+price2)/2),w3=fmt(parseFloat(avgPrice)-3);
+  return{text:`<strong>${qty1}kg</strong> of item @ Rs.<strong>${price1}/kg</strong> mixed with <strong>${qty2}kg</strong> @ Rs.<strong>${price2}/kg</strong>. Price per kg of mixture?`,
+  opts:shuffle([avgPrice,w1,w2,w3]),correct:avgPrice,
+  solution:`Avg=(${qty1}×${price1}+${qty2}×${price2})/(${qty1+qty2})=${fmt(price1*qty1+price2*qty2)}/${qty1+qty2}=<strong>Rs.${avgPrice}/kg</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation with profit target
+  const buy1=pick([20,25,30,40,50]);const buy2=pick([60,70,80,90,100]);
+  const sell=rndN(buy1+5,buy2-5);
+  const rA=buy2-sell;const rB=sell-buy1;const g=gcd(rA,rB);
+  const tot=(rA/g+rB/g)*pick([5,10,15,20]);
+  const qty1=tot*rA/(rA+rB);const qty2=tot-qty1;
+  const w1=qty1+5,w2=Math.max(1,qty1-5),w3=tot/2;
+  return{text:`Mix items costing Rs.<strong>${buy1}</strong> and Rs.<strong>${buy2}</strong>. Sell <strong>${tot}kg</strong> total @ Rs.<strong>${sell}/kg</strong> at exact cost. Qty of cheaper item?`,
+  opts:shuffle([qty1,w1,w2,w3]),correct:qty1,
+  solution:`Alligation ratio ${rA/g}:${rB/g}. Cheaper qty=(${rA/g}/${rA/g+rB/g})×${tot}=<strong>${qty1}kg</strong>`,type:'MCQ'}
+},
+()=>{
+  // Data Sufficiency with alligation
+  const c1=pick([20,25,30,40]);const c2=pick([60,70,75,80]);
+  const tgt=rndN(c1+5,c2-5);
+  const rA=c2-tgt;const rB=tgt-c1;const g=gcd(rA,rB);
+  return{text:`<strong>Data Sufficiency:</strong> Find ratio to mix two solutions for ${tgt}% concentration.<br><strong>I:</strong> First solution is ${c1}%.<br><strong>II:</strong> Second solution is ${c2}%.`,
+  opts:['Only I','Only II','Either I or II','Both needed'],correct:'Both needed',
+  solution:`Alligation needs both concentrations. Ratio=${rA/g}:${rB/g}. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+},
 ]},
 
 // ─────────────────── AGES ───────────────────
@@ -1284,6 +2257,38 @@ const CHAPTERS = {
     opts:shuffle([ratio,w1,w2,w3]),correct:ratio,
     solution:`${A}→${nA}, ${B}→${nB}. GCD=${g}. Ratio=<strong>${ratio}</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation: average age of two groups combined
+  const n1=pick([10,15,20,25,30]);const n2=pick([10,15,20,25,30]);
+  const a1=pick([18,20,22,24,25]);const a2=pick([30,35,40,45,50]);
+  const avg=fmt((n1*a1+n2*a2)/(n1+n2));
+  const w1=fmt(parseFloat(avg)+2),w2=fmt((a1+a2)/2),w3=fmt(parseFloat(avg)-2);
+  return{text:`Group 1: <strong>${n1} people</strong>, avg age <strong>${a1} yrs</strong>. Group 2: <strong>${n2} people</strong>, avg age <strong>${a2} yrs</strong>. Combined avg age?`,
+  opts:shuffle([`${avg} yrs`,`${w1} yrs`,`${w2} yrs`,`${w3} yrs`]),correct:`${avg} yrs`,
+  solution:`Weighted avg=(${n1}×${a1}+${n2}×${a2})/(${n1+n2})=${fmt(n1*a1+n2*a2)}/${n1+n2}=<strong>${avg} yrs</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: find size of group given combined average
+  const n1=pick([10,15,20,25,30]);
+  const a1=pick([18,20,22,24]);const a2=pick([35,40,45,50]);
+  const avgA=rndN(a1+5,a2-5);
+  const rA=a2-avgA;const rB=avgA-a1;const g=gcd(rA,rB);
+  const n2=fmt(n1*rB/rA);
+  const w1=fmt(parseFloat(n2)+5),w2=fmt(parseFloat(n2)-5),w3=n1;
+  return{text:`Group A of <strong>${n1}</strong> has avg age <strong>${a1} yrs</strong>. Group B has avg age <strong>${a2} yrs</strong>. Combined avg = <strong>${avgA} yrs</strong>. Size of Group B?`,
+  opts:shuffle([n2,w1,w2,fmt(w3)]),correct:n2,
+  solution:`Alligation: n1:n2=(${a2}−${avgA}):(${avgA}−${a1})=${rA/g}:${rB/g}. n2=(${rB/g}/${rA/g})×${n1}=<strong>${n2}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: teacher replaced — average changes
+  const n=pick([20,25,30,40]);const oldAvg=pick([14,16,18,20,22]);
+  const newAvg=oldAvg+pick([1,2]);const oldTeacher=pick([40,42,44,46,48,50]);
+  const newTeacher=n*(newAvg-oldAvg)+oldTeacher;
+  const w1=newTeacher+2,w2=newTeacher-2,w3=newTeacher+4;
+  return{text:`Average age of <strong>${n} students + 1 teacher = ${oldAvg} yrs</strong>. Teacher (age ${oldTeacher}) replaced. New avg = <strong>${newAvg} yrs</strong>. New teacher's age?`,
+  opts:shuffle([newTeacher,w1,w2,w3]),correct:newTeacher,
+  solution:`Rise in sum=${n+1}×(${newAvg}−${oldAvg})=${(n+1)*(newAvg-oldAvg)}. New teacher=${oldTeacher}+${(n+1)*(newAvg-oldAvg)}=<strong>${newTeacher} yrs</strong>`,type:'MCQ'}
+},
 ]},
 
 // ─────────────────── PARTNERSHIP ───────────────────
@@ -1391,6 +2396,41 @@ const CHAPTERS = {
     opts:shuffle([aShare,w1,w2,w3]),correct:aShare,
     solution:`${B}=${ib}. Ratio=${ia}:${ib}. ${A}=(${ia}/${ia+parseFloat(ib)})×${profit}=<strong>Rs. ${aShare}</strong>`,type:'MCQ'}
   },
+  ()=>{
+  // Alligation on time to find investment ratio
+  const t1=pick([6,8,9,10,12]);const t2=pick([4,5,6,8]);
+  const avgT=rndN(Math.min(t1,t2)+1,Math.max(t1,t2)-1);
+  if(avgT<=Math.min(t1,t2)||avgT>=Math.max(t1,t2))return{text:`Fallback`,opts:['1:1','2:1','1:2','3:1'],correct:'1:1',solution:``,type:'MCQ'};
+  const rA=Math.max(t1,t2)-avgT;const rB=avgT-Math.min(t1,t2);const g=gcd(rA,rB);
+  return{text:`Partner A invests for <strong>${t1} months</strong>, Partner B for <strong>${t2} months</strong>. For average active period of <strong>${avgT} months</strong>, ratio of investments A:B?`,
+  opts:shuffle([`${rA/g}:${rB/g}`,`${rB/g}:${rA/g}`,`${rA/g+1}:${rB/g}`,`${t1}:${t2}`]),
+  correct:`${rA/g}:${rB/g}`,
+  solution:`Alligation on time: (${Math.max(t1,t2)}−${avgT}):(${avgT}−${Math.min(t1,t2)})=${rA}:${rB}=<strong>${rA/g}:${rB/g}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: find 3rd partner's investment
+  const[A,B,C]=threeNames();
+  const ia=pick([20,30,40,50])*1000;const ib=pick([20,30,40,50])*1000;
+  const avgCapital=pick([25,30,35,40,45,50])*1000;
+  const ic=fmt(3*avgCapital-ia-ib);
+  if(parseFloat(ic)<=0)return{text:`Fallback`,opts:['30000','40000','50000','60000'],correct:'40000',solution:``,type:'MCQ'};
+  const w1=fmt(parseFloat(ic)+5000),w2=fmt(parseFloat(ic)-5000),w3=fmt(avgCapital);
+  return{text:`<strong>${A}</strong> invests Rs.${ia.toLocaleString()}, <strong>${B}</strong> Rs.${ib.toLocaleString()}. Average capital of all 3 = Rs.${avgCapital.toLocaleString()}. Find <strong>${C}'s</strong> investment.`,
+  opts:shuffle([ic,w1,w2,w3]),correct:ic,
+  solution:`Total = 3×${avgCapital}=${3*avgCapital}. ${C}=${3*avgCapital}−${ia}−${ib}=<strong>Rs.${ic}</strong>`,type:'MCQ'}
+},
+()=>{
+  // Alligation: weighted avg return on 2 investments
+  const[A,B]=twoNames();const ia=pick([20,30,40,50])*1000;const ib=pick([20,30,40,50])*1000;
+  const profit=pick([15,18,20,24,25,30])*1000;
+  const aShare=fmt(profit*ia/(ia+ib));const bShare=fmt(profit-parseFloat(aShare));
+  const aRet=fmt(parseFloat(aShare)/ia*100);const bRet=fmt(parseFloat(bShare)/ib*100);
+  const avgRet=fmt(profit/(ia+ib)*100);
+  const w1=fmt(parseFloat(avgRet)+2),w2=fmt((parseFloat(aRet)+parseFloat(bRet))/2),w3=fmt(parseFloat(avgRet)-2);
+  return{text:`<strong>${A}</strong> invests Rs.${ia.toLocaleString()}, <strong>${B}</strong> Rs.${ib.toLocaleString()}. Profit Rs.${profit.toLocaleString()} split by ratio. Overall % return on total investment?`,
+  opts:shuffle([`${avgRet}%`,`${w1}%`,`${w2}%`,`${w3}%`]),correct:`${avgRet}%`,
+  solution:`Total invested=${ia+ib}. Avg return=${profit}/${ia+ib}×100=<strong>${avgRet}%</strong>`,type:'MCQ'}
+},
 ]},
 
 // ─────────────────── MENSURATION ───────────────────
