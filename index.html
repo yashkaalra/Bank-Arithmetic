@@ -1916,18 +1916,6 @@ const CHAPTERS = {
   solution:`Relative speed = ${s1}+${s2} = ${s1+s2} m/s. Time = ${circum}/${s1+s2} = <strong>${time}s</strong>`,type:'MCQ'}
 },
 ()=>{
-  // Circular track — how many times they meet
-  const circum=pick([400,600,800,1000,1200]);
-  const s1=pick([4,5,6,8,10]);const s2=pick([2,3,4,5]);
-  if(s1<=s2)return{text:`Track fallback`,opts:['2','3','4','5'],correct:'3',solution:``,type:'MCQ'};
-  const totalTime=pick([600,900,1200,1800,2400]);
-  const meetings=Math.floor(totalTime*(s1-s2)/circum);
-  const w1=meetings+1,w2=meetings-1,w3=Math.floor(totalTime*(s1+s2)/circum);
-  return{text:`Circular track <strong>${circum}m</strong>. Speeds <strong>${s1} m/s</strong> & <strong>${s2} m/s</strong>, same direction. In <strong>${totalTime}s</strong>, how many times does faster lap slower?`,
-  opts:shuffle([meetings,w1,w2,w3]),correct:meetings,
-  solution:`Meetings = ⌊${totalTime}×(${s1}−${s2})/${circum}⌋ = ⌊${totalTime*(s1-s2)/${circum}}⌋ = <strong>${meetings}</strong>`,type:'MCQ'}
-},
-()=>{
   // Train crossing a walking person — same direction
   const trainLen=pick([100,120,150,180,200,240]);
   const trainSpd=pick([54,60,66,72,80,90]);// km/h
