@@ -229,6 +229,16 @@ details summary{list-style:none;cursor:pointer}
       </div>
     </div>
 
+    <div class="card" style="padding:20px;margin-bottom:26px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h2 class="disp" style="font-size:1.15rem;font-weight:700">📜 Performance History</h2>
+    <button class="btn btn-sec" style="font-size:.7rem;padding:4px 12px" onclick="clearHistory()">Clear All</button>
+  </div>
+  
+  <div id="history-list" style="max-height:300px;overflow-y:auto">
+    <p style="color:#4b5563;font-size:.85rem;text-align:center;padding:20px">No history yet. Complete a quiz to see your results!</p>
+  </div>
+</div>
     <div style="text-align:center">
       <button class="btn btn-pri" id="start-btn" onclick="startQuiz()" disabled>🚀 &nbsp;START QUIZ</button>
       <p style="font-size:.75rem;color:#374151;margin-top:10px">Select at least 1 chapter to begin • Each session generates fresh unique questions</p>
@@ -3074,9 +3084,65 @@ function generateQuestion(chapterName){
   return{...q,chapter:chapterName,opts:opts,correct:correctStr};
 }
 
+  // skill 1: This function saves the data to the browser's memory
+function saveToHistory(sc, tot, ok, acc) {
+  // Get the existing list from memory, or start a new empty list []
+  const history = JSON.parse(localStorage.getItem('banking_quiz_history') || '[]');
+  
+  // Create a new entry with the current date and time
+  const newEntry = { 
+    date: new Date().toLocaleString(), 
+    score: sc, 
+    total: tot, 
+    correct: ok, 
+    accuracy: acc 
+  };
+  
+  // Add the new entry to the front of the list
+  history.unshift(newEntry);
+  
+  // Save it back to memory (keep only the last 20 results so it stays fast)
+  localStorage.setItem('banking_quiz_history', JSON.stringify(history.slice(0, 20))); 
+}
+
+// skill 2: This function reads the memory and puts it into the HTML shelf
+function renderHistory() {
+  const history = JSON.parse(localStorage.getItem('banking_quiz_history') || '[]');
+  const container = document.getElementById('history-list');
+  
+  if (history.length === 0) return; // If no history, don't do anything
+  
+  // Build a small table to show the data neatly
+  let html = `<table style="width:100%; text-align:left; font-size:0.8rem; border-collapse:collapse;">
+    <tr style="color:var(--sky); border-bottom:1px solid rgba(59,130,246,0.2);">
+      <th style="padding:8px;">Date</th>
+      <th style="padding:8px;">Score</th>
+      <th style="padding:8px;">Acc.</th>
+    </tr>`;
+    
+  history.forEach(item => {
+    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+      <td style="padding:8px; color:#64748b;">${item.date.split(',')[0]}</td>
+      <td style="padding:8px; font-weight:700; color:var(--gold);">${item.score}</td>
+      <td style="padding:8px; color:#e2e8f0;">${item.accuracy}</td>
+    </tr>`;
+  });
+  
+  container.innerHTML = html + `</table>`;
+}
+
+// Skill 3: A function to wipe the memory if you want to start fresh
+function clearHistory() { 
+  if(confirm("Delete all saved results?")) {
+    localStorage.removeItem('banking_quiz_history'); 
+    location.reload(); 
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════════
+  
 let selChapters=[],selTimer=60,selQCount=20,selQType='all';
 let quizQs=[],curIdx=0,userAns=[],timerInt=null,timeLeft=60,quizStart=null,isSubmitted=false;
 
@@ -3280,6 +3346,7 @@ function buildResults(totalTime){
   let sc=0,ok=0,bad=0,sk=0;
   userAns.forEach((a,i)=>{if(a==='skipped')sk++;else if(a===quizQs[i].correct){sc+=1;ok++}else{sc-=0.25;bad++}});
   const tot=quizQs.length;const acc=tot>0?fmt(ok/tot*100):0;
+  saveToHistory(sc.toFixed(2), tot, ok, acc+'%');
   const maxSc=tot;const sp=Math.max(0,sc/maxSc*100);
   let grade,msg;
   if(sp>=80){grade='🏆 Outstanding!';msg='You are exam-ready. Excellent command!'}
@@ -3338,11 +3405,16 @@ function buildResults(totalTime){
   }).join('');
 }
 function fmtTime(s){const m=Math.floor(s/60);return m>0?`${m}m ${s%60}s`:`${s}s`}
-function goDash(){clearInterval(timerInt);showSc('sc-dash')}
+function goDash(){
+  clearInterval(timerInt);
+  renderHistory(); // This refreshes the list when you click "Dashboard"
+  showSc('sc-dash');
+}
 function retake(){clearInterval(timerInt);startQuiz()}
 function showSc(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0)}
 
 initDash();
+renderHistory(); // This tells the app to load your past results immediately
 </script>
 </body>
 </html>
