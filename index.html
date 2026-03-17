@@ -431,6 +431,513 @@ function twoPcts(subset){
 
 const CHAPTERS = {
 
+  "Averages":{icon:"📈",color:"#6366f1",templates:[
+
+  // ── 1. Basic average of N numbers ──────────────────────────────
+  ()=>{
+    const n=pick([5,6,7,8,9,10]);
+    const avg=pick([12,14,15,16,18,20,22,24,25,28,30,32,35,40,45,50]);
+    const sum=n*avg;
+    const w1=avg+n,w2=avg-2,w3=sum-avg;
+    return{text:`Sum of <strong>${n}</strong> numbers is <strong>${sum}</strong>. Find their average.`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Average = Sum ÷ Count = ${sum} ÷ ${n} = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 2. Average of consecutive natural numbers ──────────────────
+  ()=>{
+    const start=rndN(2,40);const n=pick([5,6,7,8,9,10,11,12,15,20]);
+    const end=start+n-1;const avg=fmt((start+end)/2);
+    const w1=fmt(parseFloat(avg)+1),w2=fmt(parseFloat(avg)-1),w3=fmt(parseFloat(avg)+0.5);
+    return{text:`Find the average of consecutive natural numbers from <strong>${start}</strong> to <strong>${end}</strong>.`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Average of consecutive numbers = (First + Last)/2 = (${start}+${end})/2 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 3. Average of consecutive even numbers ─────────────────────
+  ()=>{
+    const start=rndN(1,20)*2;const n=pick([4,5,6,7,8,10]);
+    const end=start+2*(n-1);const avg=(start+end)/2;
+    const w1=avg+2,w2=avg-2,w3=avg+1;
+    return{text:`Find the average of the first <strong>${n}</strong> consecutive even numbers starting from <strong>${start}</strong>.`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Last even = ${end}. Average = (${start}+${end})/2 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 4. Average of consecutive odd numbers ─────────────────────
+  ()=>{
+    const start=rndN(1,20)*2-1;const n=pick([4,5,6,7,8,10]);
+    const end=start+2*(n-1);const avg=(start+end)/2;
+    const w1=avg+2,w2=avg-2,w3=start+n;
+    return{text:`Find the average of <strong>${n}</strong> consecutive odd numbers starting from <strong>${start}</strong>.`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Last odd = ${end}. Average = (${start}+${end})/2 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 5. Average of first N natural numbers ─────────────────────
+  ()=>{
+    const n=pick([10,20,25,30,40,50,60,80,100]);
+    const avg=fmt((n+1)/2);
+    const w1=fmt(parseFloat(avg)+0.5),w2=n/2,w3=fmt(parseFloat(avg)+1);
+    return{text:`What is the average of the first <strong>${n}</strong> natural numbers?`,
+    opts:shuffle([avg,fmt(w1),fmt(w2),fmt(w3)]),correct:avg,
+    solution:`Average of first N natural numbers = (N+1)/2 = (${n}+1)/2 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 6. Average of first N odd numbers ─────────────────────────
+  ()=>{
+    const n=pick([5,8,10,12,15,20,25]);
+    const avg=n;// average of first N odd numbers = N
+    const w1=n+1,w2=n-1,w3=2*n-1;
+    return{text:`What is the average of the first <strong>${n}</strong> odd numbers?`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`First N odd numbers: 1,3,5,...,(2N−1). Average = N = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 7. Average of first N even numbers ────────────────────────
+  ()=>{
+    const n=pick([5,6,8,10,12,15,20]);
+    const avg=n+1;
+    const w1=n,w2=n+2,w3=2*n;
+    return{text:`What is the average of the first <strong>${n}</strong> even numbers?`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`First N even: 2,4,6,...,2N. Sum = N(N+1). Average = (N+1) = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 8. Average of multiples of a number ───────────────────────
+  ()=>{
+    const k=pick([3,4,5,6,7,8,9,11]);const n=pick([5,6,7,8,9,10]);
+    const last=k*n;const avg=fmt(k*(n+1)/2);
+    const w1=fmt(parseFloat(avg)+k),w2=fmt(parseFloat(avg)-k),w3=last/2;
+    return{text:`What is the average of the first <strong>${n}</strong> multiples of <strong>${k}</strong>?`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Multiples: ${k},${2*k},...,${last}. Average = k×(N+1)/2 = ${k}×${n+1}/2 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 9. One new member joins — find new average ─────────────────
+  ()=>{
+    const[A]=twoNames();const n=pick([4,5,6,7,8,9,10,12,15,20]);
+    const avg=pick([20,22,24,25,28,30,32,35,40,45,50]);
+    const newVal=pick([10,15,18,20,22,24,25,28,30,32,35,40,45,50,55,60,65,70,80]);
+    const newAvg=fmt((n*avg+newVal)/(n+1));
+    const w1=fmt(parseFloat(newAvg)+1),w2=fmt(parseFloat(newAvg)-1),w3=fmt((avg+newVal)/2);
+    return{text:`Average of <strong>${n}</strong> numbers is <strong>${avg}</strong>. A new number <strong>${newVal}</strong> is added. New average?`,
+    opts:shuffle([newAvg,w1,w2,w3]),correct:newAvg,
+    solution:`New sum = ${n}×${avg}+${newVal} = ${n*avg+newVal}. New avg = ${n*avg+newVal}/${n+1} = <strong>${newAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 10. One member leaves — find new average ──────────────────
+  ()=>{
+    const n=pick([5,6,7,8,9,10,12,15,20]);
+    const avg=pick([20,24,25,30,32,35,40,45,50]);
+    const removed=pick([10,12,15,18,20,22,24,25,28,30,35,40,45,50,55,60,65,70]);
+    const newAvg=fmt((n*avg-removed)/(n-1));
+    const w1=fmt(parseFloat(newAvg)+1),w2=fmt(parseFloat(newAvg)-1),w3=avg;
+    return{text:`Average of <strong>${n}</strong> numbers is <strong>${avg}</strong>. If <strong>${removed}</strong> is removed, new average?`,
+    opts:shuffle([newAvg,w1,w2,w3]),correct:newAvg,
+    solution:`Remaining sum = ${n}×${avg}−${removed} = ${n*avg-removed}. New avg = ${n*avg-removed}/${n-1} = <strong>${newAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 11. Teacher joins class — find teacher's age ───────────────
+  ()=>{
+    const[A]=twoNames();const n=rndN(15,40);
+    const classAvg=pick([14,15,16,17,18,20,22,24]);
+    const rise=pick([1,2,3]);
+    const newAvg=classAvg+rise;
+    const teacherAge=(n+1)*newAvg-n*classAvg;
+    const w1=teacherAge+2,w2=teacherAge-2,w3=teacherAge+rise*n;
+    return{text:`Average age of <strong>${n} students</strong> is <strong>${classAvg} years</strong>. Their teacher <strong>${A}</strong> joins and average becomes <strong>${newAvg} years</strong>. Teacher's age?`,
+    opts:shuffle([teacherAge,w1,w2,w3]),correct:teacherAge,
+    solution:`Teacher = (${n}+1)×${newAvg} − ${n}×${classAvg} = ${(n+1)*newAvg} − ${n*classAvg} = <strong>${teacherAge} years</strong>`,type:'MCQ'}
+  },
+
+  // ── 12. Teacher leaves class — find teacher's age ─────────────
+  ()=>{
+    const n=rndN(20,45);
+    const classAvg=pick([14,15,16,17,18,20,22,24,25]);
+    const drop=pick([1,2,3]);
+    const newAvg=classAvg-drop;
+    const teacherAge=n*classAvg-(n-1)*newAvg;
+    const w1=teacherAge+2,w2=teacherAge-2,w3=teacherAge+3;
+    return{text:`Average age of <strong>${n} students including teacher</strong> is <strong>${classAvg} years</strong>. Teacher leaves and average falls by <strong>${drop} year${drop>1?'s':''}</strong>. Teacher's age?`,
+    opts:shuffle([teacherAge,w1,w2,w3]),correct:teacherAge,
+    solution:`Teacher = ${n}×${classAvg} − (${n}−1)×${newAvg} = ${n*classAvg} − ${(n-1)*newAvg} = <strong>${teacherAge} years</strong>`,type:'MCQ'}
+  },
+
+  // ── 13. New member replaces old — average changes ─────────────
+  ()=>{
+    const[A,B]=twoNames();const n=pick([5,6,7,8,9,10,12,15,20,25,30]);
+    const avg=pick([20,24,25,28,30,32,35,40,45,50,55,60]);
+    const rise=pick([1,2,3,4,5]);const sign=pick([1,-1]);
+    const change=sign*rise;
+    const newAvg=avg+change;
+    const oldVal=pick([20,25,30,35,40,45,50,55,60,65,70]);
+    const newVal=oldVal+n*change;
+    if(newVal<=0)return{text:`Replacement fallback`,opts:[oldVal+n,oldVal+2*n,oldVal+3*n,oldVal+4*n],correct:oldVal+n,solution:`Replacement`,type:'MCQ'};
+    const w1=newVal+n,w2=newVal-n,w3=oldVal+change;
+    return{text:`Average of <strong>${n}</strong> numbers is <strong>${avg}</strong>. If <strong>${oldVal}</strong> is replaced by <strong>${newVal}</strong>, average becomes <strong>${newAvg}</strong>. Verify: change per number?`,
+    opts:shuffle([newVal,w1,w2,w3]),correct:newVal,
+    solution:`Average changes by ${change}. Difference needed = ${n}×${change} = ${n*change}. New value = ${oldVal}+${n*change} = <strong>${newVal}</strong>`,type:'MCQ'}
+  },
+
+  // ── 14. Wrong entry corrected — find new average ──────────────
+  ()=>{
+    const n=pick([10,15,20,25,30,40,50]);
+    const avg=pick([30,35,40,45,50,55,60,65,70,80]);
+    const wrong=pick([25,30,35,40,45,50,55,60,65,70,75,80,85,90]);
+    const correct_val=wrong+pick([10,15,18,20,25,30,-10,-15,-18,-20,-25]);
+    const diff=correct_val-wrong;
+    const newAvg=fmt(avg+diff/n);
+    const w1=fmt(parseFloat(newAvg)+1),w2=fmt(parseFloat(newAvg)-1),w3=fmt(avg+diff);
+    return{text:`Average of <strong>${n}</strong> numbers is <strong>${avg}</strong>. Later found that <strong>${wrong}</strong> was misread as <strong>${correct_val}</strong>. Correct average?`,
+    opts:shuffle([newAvg,w1,w2,w3]),correct:newAvg,
+    solution:`Correction = ${correct_val}−${wrong} = ${diff}. New avg = ${avg} + ${diff}/${n} = <strong>${newAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 15. Score wrong by X — average wrong by Y ─────────────────
+  ()=>{
+    const n=pick([10,15,20,25,30,40,50]);
+    const avg=pick([40,45,50,55,60,65,70,75,80]);
+    const errorAmt=pick([5,8,10,12,15,18,20,24,25,30]);
+    const avgError=fmt(errorAmt/n);
+    const direction=pick(['higher','lower']);
+    const correctAvg=direction==='higher'?fmt(parseFloat(avg)-parseFloat(avgError)):fmt(parseFloat(avg)+parseFloat(avgError));
+    const w1=fmt(parseFloat(correctAvg)+parseFloat(avgError)),w2=fmt(parseFloat(correctAvg)-parseFloat(avgError));
+    const w3=fmt(parseFloat(avg)+parseFloat(avgError));
+    return{text:`Average of <strong>${n}</strong> students' marks is <strong>${avg}</strong>. One student's marks were recorded <strong>${errorAmt} more</strong> than actual. Correct average?`,
+    opts:shuffle([fmt(parseFloat(avg)-parseFloat(avgError)),w1,w2,fmt(avg)]),
+    correct:fmt(parseFloat(avg)-parseFloat(avgError)),
+    solution:`Sum was inflated by ${errorAmt}. Correct avg = ${avg} − ${errorAmt}/${n} = ${avg} − ${avgError} = <strong>${fmt(parseFloat(avg)-parseFloat(avgError))}</strong>`,type:'MCQ'}
+  },
+
+  // ── 16. Cricket batting average (runs + new innings) ──────────
+  ()=>{
+    const[A]=twoNames();
+    const innings=pick([10,12,14,15,16,18,20,22,24,25]);
+    const avg=pick([28,30,32,35,38,40,42,44,45,48,50]);
+    const rise=pick([2,3,4,5]);
+    const newAvg=avg+rise;
+    const newScore=newAvg*(innings+1)-avg*innings;
+    const w1=newScore+rise,w2=newScore-rise,w3=avg+rise*innings;
+    return{text:`<strong>${A}</strong> has played <strong>${innings} innings</strong> with average <strong>${avg} runs</strong>. To raise average by <strong>${rise}</strong>, runs needed in next innings?`,
+    opts:shuffle([newScore,w1,w2,w3]),correct:newScore,
+    solution:`Target avg = ${newAvg}. Runs needed = ${newAvg}×${innings+1} − ${avg}×${innings} = ${newAvg*(innings+1)} − ${avg*innings} = <strong>${newScore}</strong>`,type:'MCQ'}
+  },
+
+  // ── 17. Cricket — average after dismissals ────────────────────
+  ()=>{
+    const[A]=twoNames();
+    const innings=pick([20,22,24,25,28,30]);
+    const avg=pick([35,38,40,42,45,48,50,52,55]);
+    const notOut=pick([2,3,4,5]);
+    // Runs = avg × innings; batting avg (per dismissal) = runs / (innings - notOut)
+    const runs=avg*innings;
+    const battingAvg=fmt(runs/(innings-notOut));
+    const w1=fmt(parseFloat(battingAvg)+2),w2=avg,w3=fmt(parseFloat(battingAvg)-2);
+    return{text:`<strong>${A}</strong> played <strong>${innings} innings</strong>, scored <strong>${runs} runs</strong>, remained not out <strong>${notOut} times</strong>. Batting average (per dismissal)?`,
+    opts:shuffle([battingAvg,w1,w2,w3]),correct:battingAvg,
+    solution:`Dismissals = ${innings}−${notOut} = ${innings-notOut}. Avg = ${runs}/${innings-notOut} = <strong>${battingAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 18. Average speed (equal distance) ────────────────────────
+  ()=>{
+    const s1=pick([30,36,40,45,48,54,60,66,72,80]);
+    const s2=pick([40,45,54,60,66,72,80,90,100]);
+    const avgSpd=fmt(2*s1*s2/(s1+s2));
+    const w1=fmt((s1+s2)/2),w2=fmt(parseFloat(avgSpd)+2),w3=fmt(parseFloat(avgSpd)-2);
+    return{text:`A person travels equal distances at <strong>${s1} km/h</strong> and <strong>${s2} km/h</strong>. Average speed for whole journey?`,
+    opts:shuffle([avgSpd,w1,w2,w3]),correct:avgSpd,
+    solution:`Equal distance → Avg speed = 2S₁S₂/(S₁+S₂) = 2×${s1}×${s2}/${s1+s2} = <strong>${avgSpd} km/h</strong> (Harmonic mean, NOT arithmetic mean)`,type:'MCQ'}
+  },
+
+  // ── 19. Average of squares (standard formula check) ───────────
+  ()=>{
+    const n=pick([5,10,15,20]);
+    // avg of 1²+2²+...+n² = n(n+1)(2n+1)/6 / n = (n+1)(2n+1)/6
+    const avg=fmt((n+1)*(2*n+1)/6);
+    const w1=fmt(parseFloat(avg)+n),w2=fmt(n*(n+1)/2),w3=fmt(parseFloat(avg)-1);
+    return{text:`What is the average of the squares of the first <strong>${n}</strong> natural numbers?`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Sum of squares = n(n+1)(2n+1)/6 = ${n}×${n+1}×${2*n+1}/6. Average = (n+1)(2n+1)/6 = ${n+1}×${2*n+1}/6 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 20. Weighted average (two groups) ─────────────────────────
+  ()=>{
+    const[A,B]=twoNames();
+    const n1=pick([10,15,20,25,30,40]);const n2=pick([10,15,20,25,30,40]);
+    const avg1=pick([40,42,44,45,48,50,52,54,55,58,60]);
+    const avg2=pick([60,62,64,65,68,70,72,74,75,78,80]);
+    const combined=fmt((n1*avg1+n2*avg2)/(n1+n2));
+    const w1=fmt(parseFloat(combined)+2),w2=fmt((avg1+avg2)/2),w3=fmt(parseFloat(combined)-2);
+    return{text:`Class <strong>${A}</strong> has <strong>${n1}</strong> students with average marks <strong>${avg1}</strong>. Class <strong>${B}</strong> has <strong>${n2}</strong> students with average marks <strong>${avg2}</strong>. Combined average?`,
+    opts:shuffle([combined,w1,w2,w3]),correct:combined,
+    solution:`Combined = (${n1}×${avg1}+${n2}×${avg2})/${n1+n2} = ${n1*avg1+n2*avg2}/${n1+n2} = <strong>${combined}</strong>`,type:'MCQ'}
+  },
+
+  // ── 21. Three groups combined average ─────────────────────────
+  ()=>{
+    const[A,B,C]=threeNames();
+    const n1=pick([10,12,15,20]),n2=pick([10,12,15,20]),n3=pick([8,10,12,15]);
+    const avg1=pick([40,42,45,48,50]),avg2=pick([52,54,55,58,60]),avg3=pick([62,64,65,68,70]);
+    const combined=fmt((n1*avg1+n2*avg2+n3*avg3)/(n1+n2+n3));
+    const w1=fmt(parseFloat(combined)+2),w2=fmt((avg1+avg2+avg3)/3),w3=fmt(parseFloat(combined)-2);
+    return{text:`Groups: <strong>${A}</strong>(${n1}, avg ${avg1}), <strong>${B}</strong>(${n2}, avg ${avg2}), <strong>${C}</strong>(${n3}, avg ${avg3}). Overall average?`,
+    opts:shuffle([combined,w1,w2,w3]),correct:combined,
+    solution:`Total sum=${n1*avg1+n2*avg2+n3*avg3}. Total count=${n1+n2+n3}. Avg=<strong>${combined}</strong>`,type:'MCQ'}
+  },
+
+  // ── 22. Average age of family ─────────────────────────────────
+  ()=>{
+    const[A,B]=twoNames();
+    const familySize=pick([3,4,5,6]);
+    const avgNow=pick([18,20,22,24,25,26,28,30]);
+    const yrsAgo=pick([3,4,5,6,8,10]);
+    const babyAge=pick([1,2,3,4,5]);// baby born yrsAgo years ago OR a new baby added
+    // Scenario: average X years ago was Y, a baby was born since — find current avg
+    const oldAvg=avgNow-yrsAgo;// everyone aged by yrsAgo
+    // actually: current avg of (familySize+1) with baby aged babyAge
+    const totalNow=familySize*oldAvg+yrsAgo*familySize+babyAge;// everyone aged + baby
+    const newFamilySize=familySize+1;
+    const currentAvg=fmt(totalNow/newFamilySize);
+    const w1=fmt(parseFloat(currentAvg)+1),w2=fmt(parseFloat(currentAvg)-1),w3=oldAvg;
+    return{text:`Average age of a family of <strong>${familySize}</strong> was <strong>${oldAvg} years</strong> <strong>${yrsAgo} years ago</strong>. A baby aged <strong>${babyAge}</strong> joined recently. Current average age?`,
+    opts:shuffle([currentAvg,w1,w2,w3]),correct:currentAvg,
+    solution:`Old sum=${familySize*oldAvg}. After ${yrsAgo} yrs: sum=${familySize*oldAvg+yrsAgo*familySize}. With baby: ${familySize*oldAvg+yrsAgo*familySize}+${babyAge}=${totalNow}. Avg=${totalNow}/${newFamilySize}=<strong>${currentAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 23. Average of family — member dies ───────────────────────
+  ()=>{
+    const size=pick([4,5,6,7,8]);
+    const avg=pick([28,30,32,35,38,40,42,45]);
+    const died=pick([55,58,60,62,65,68,70,72,75,78,80]);
+    const newAvg=fmt((size*avg-died)/(size-1));
+    const w1=fmt(parseFloat(newAvg)+2),w2=fmt(parseFloat(newAvg)-2),w3=avg;
+    return{text:`Average age of <strong>${size}</strong> family members is <strong>${avg} years</strong>. One member aged <strong>${died}</strong> passes away. New average?`,
+    opts:shuffle([newAvg,w1,w2,w3]),correct:newAvg,
+    solution:`Remaining sum = ${size*avg}−${died} = ${size*avg-died}. New avg = ${size*avg-died}/${size-1} = <strong>${newAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 24. Average of family — new member born ───────────────────
+  ()=>{
+    const size=pick([3,4,5,6]);
+    const avg=pick([20,22,24,25,28,30,32,35]);
+    const rise=pick([1,2,3]);
+    // new avg after baby (age 0) is added:
+    // newAvg = (size*avg + 0)/(size+1) => avg actually falls
+    // More realistic: avg falls by some amount when newborn joins
+    const drop=pick([1,2,3,4]);
+    const newAvg=avg-drop;
+    const babyAge=fmt((avg-drop)*(size+1)-avg*size);
+    if(parseFloat(babyAge)<0)return{text:`A family of ${size+1} has avg ${avg}`,opts:[avg,avg+1,avg-1,avg+2],correct:avg,solution:`Direct`,type:'MCQ'};
+    const w1=fmt(parseFloat(babyAge)+2),w2=fmt(parseFloat(babyAge)-1),w3=0;
+    return{text:`Average age of <strong>${size}</strong> members is <strong>${avg} years</strong>. A baby joins and average falls to <strong>${newAvg} years</strong>. Baby's age?`,
+    opts:shuffle([babyAge,w1,w2,fmt(w3)]),correct:babyAge,
+    solution:`Baby's age = (${newAvg})×${size+1} − ${avg}×${size} = ${newAvg*(size+1)} − ${avg*size} = <strong>${babyAge} years</strong>`,type:'MCQ'}
+  },
+
+  // ── 25. Average income / expenditure ──────────────────────────
+  ()=>{
+    const[A]=twoNames();
+    const months=pick([6,8,9,10,12]);
+    const avgIncome=pick([15,18,20,22,24,25,28,30])*1000;
+    const avgExp=pick([10,12,14,15,16,18,20,22])*1000;
+    const totalSaving=months*(avgIncome-avgExp);
+    const w1=totalSaving+avgIncome,w2=totalSaving-avgExp,w3=months*avgIncome;
+    return{text:`<strong>${A}'s</strong> average monthly income is Rs.<strong>${avgIncome.toLocaleString()}</strong> and average expenditure Rs.<strong>${avgExp.toLocaleString()}</strong> over <strong>${months} months</strong>. Total savings?`,
+    opts:shuffle([totalSaving,w1,w2,w3]),correct:totalSaving,
+    solution:`Monthly saving = ${avgIncome-avgExp}. Total = ${avgIncome-avgExp}×${months} = <strong>Rs.${totalSaving.toLocaleString()}</strong>`,type:'MCQ'}
+  },
+
+  // ── 26. Average marks — one subject wrong ─────────────────────
+  ()=>{
+    const n=pick([5,6,7,8,10]);// number of subjects
+    const avg=pick([60,62,64,65,68,70,72,74,75,78,80]);
+    const wrong=pick([40,45,48,50,52,55,58,60,62,65]);
+    const correct_marks=wrong+pick([10,12,14,15,18,20,22,24,25,30]);
+    const newAvg=fmt(avg+(correct_marks-wrong)/n);
+    const w1=fmt(parseFloat(newAvg)+1),w2=fmt(parseFloat(newAvg)-1),w3=fmt(avg+(correct_marks-wrong));
+    return{text:`Average marks of <strong>${n} subjects</strong> is <strong>${avg}</strong>. One subject's marks recorded as <strong>${wrong}</strong> instead of <strong>${correct_marks}</strong>. Correct average?`,
+    opts:shuffle([newAvg,w1,w2,w3]),correct:newAvg,
+    solution:`Difference = ${correct_marks}−${wrong} = ${correct_marks-wrong}. New avg = ${avg}+${correct_marks-wrong}/${n} = <strong>${newAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 27. Average run rate — target in remaining overs ──────────
+  ()=>{
+    const totalOvers=pick([20,40,50]);
+    const doneovers=pick([5,6,8,10,12,15,16,20]);
+    if(doneovers>=totalOvers)return{text:`Overs fallback`,opts:['8','10','12','15'],correct:'10',solution:`Rate`,type:'MCQ'};
+    const target=rndN(100,320);
+    const scored=rndN(40,Math.min(target-30,150));
+    const remaining=totalOvers-doneovers;
+    const reqRate=fmt((target-scored)/remaining);
+    const w1=fmt(parseFloat(reqRate)+1),w2=fmt(parseFloat(reqRate)-1),w3=fmt(target/totalOvers);
+    return{text:`Target: <strong>${target}</strong> runs in <strong>${totalOvers}</strong> overs. After <strong>${doneovers}</strong> overs: <strong>${scored}</strong> runs scored. Required run rate for remaining <strong>${remaining}</strong> overs?`,
+    opts:shuffle([reqRate,w1,w2,w3]),correct:reqRate,
+    solution:`Needed = ${target}−${scored} = ${target-scored}. Rate = ${target-scored}/${remaining} = <strong>${reqRate}</strong> runs/over`,type:'MCQ'}
+  },
+
+  // ── 28. Weighted average salary (department-wise) ─────────────
+  ()=>{
+    const dept1=pick([10,12,15,20]);const dept2=pick([8,10,12,15]);
+    const sal1=pick([25,28,30,32,35])*1000;
+    const sal2=pick([40,42,45,48,50])*1000;
+    const combined=fmt((dept1*sal1+dept2*sal2)/(dept1+dept2));
+    const w1=fmt(parseFloat(combined)+1000),w2=fmt((sal1+sal2)/2),w3=fmt(parseFloat(combined)-1000);
+    return{text:`Dept A: <strong>${dept1} employees</strong>, avg salary Rs.<strong>${sal1.toLocaleString()}</strong>. Dept B: <strong>${dept2} employees</strong>, avg Rs.<strong>${sal2.toLocaleString()}</strong>. Combined average salary?`,
+    opts:shuffle([combined,w1,w2,w3]),correct:combined,
+    solution:`Combined = (${dept1}×${sal1}+${dept2}×${sal2})/${dept1+dept2} = <strong>Rs.${combined}</strong>`,type:'MCQ'}
+  },
+
+  // ── 29. Average after excluding highest/lowest ────────────────
+  ()=>{
+    const n=pick([5,6,7,8,9,10]);
+    const avg=pick([30,35,40,45,50,55,60]);
+    const sum=n*avg;
+    const highest=pick([70,75,80,85,90,95,100]);
+    const lowest=rndN(10,25);
+    const midAvg=fmt((sum-highest-lowest)/(n-2));
+    const w1=fmt(parseFloat(midAvg)+2),w2=fmt(parseFloat(midAvg)-2),w3=avg;
+    return{text:`Average of <strong>${n}</strong> numbers is <strong>${avg}</strong>. Excluding highest (<strong>${highest}</strong>) and lowest (<strong>${lowest}</strong>), average of remaining?`,
+    opts:shuffle([midAvg,w1,w2,w3]),correct:midAvg,
+    solution:`Sum=${sum}. After removing ${highest}+${lowest}=${highest+lowest}: ${sum-highest-lowest}/${n-2} = <strong>${midAvg}</strong>`,type:'MCQ'}
+  },
+
+  // ── 30. Average with a missing number ─────────────────────────
+  ()=>{
+    const n=pick([4,5,6,7,8]);
+    const targetAvg=pick([25,30,35,40,45,50,55,60]);
+    const known=[];for(let i=0;i<n-1;i++)known.push(rndN(targetAvg-20,targetAvg+20));
+    const missing=fmt(n*targetAvg-known.reduce((a,b)=>a+b,0));
+    if(parseFloat(missing)<0||parseFloat(missing)>200)return{text:`Missing number fallback`,opts:[targetAvg,targetAvg+5,targetAvg-5,targetAvg+10],correct:targetAvg,solution:`Direct`,type:'MCQ'};
+    const w1=fmt(parseFloat(missing)+5),w2=fmt(parseFloat(missing)-5),w3=fmt(parseFloat(missing)+10);
+    return{text:`Average of ${n} numbers is <strong>${targetAvg}</strong>. ${n-1} of them are <strong>${known.join(', ')}</strong>. Find the missing number.`,
+    opts:shuffle([missing,w1,w2,w3]),correct:missing,
+    solution:`Sum = ${n}×${targetAvg} = ${n*targetAvg}. Missing = ${n*targetAvg}−(${known.join('+')}=${known.reduce((a,b)=>a+b,0)}) = <strong>${missing}</strong>`,type:'MCQ'}
+  },
+
+  // ── 31. Average expenditure over months ───────────────────────
+  ()=>{
+    const[A]=twoNames();
+    const months1=pick([3,4,5,6]);const avg1=pick([4000,4500,5000,5500,6000]);
+    const months2=pick([3,4,5,6]);const avg2=pick([6000,6500,7000,7500,8000]);
+    const totalMonths=months1+months2;
+    const combined=fmt((months1*avg1+months2*avg2)/totalMonths);
+    const w1=fmt(parseFloat(combined)+200),w2=fmt((avg1+avg2)/2),w3=fmt(parseFloat(combined)-200);
+    return{text:`<strong>${A}</strong> spends avg Rs.<strong>${avg1}</strong>/month for <strong>${months1} months</strong> and Rs.<strong>${avg2}</strong>/month for next <strong>${months2} months</strong>. Overall average monthly expenditure?`,
+    opts:shuffle([combined,w1,w2,w3]),correct:combined,
+    solution:`Total = ${months1*avg1+months2*avg2}. Avg = ${months1*avg1+months2*avg2}/${totalMonths} = <strong>Rs.${combined}</strong>`,type:'MCQ'}
+  },
+
+  // ── 32. Two people — combined average weight/height ───────────
+  ()=>{
+    const[A,B,C]=threeNames();
+    const wA=pick([55,58,60,62,64,65,68,70,72,74,75]);
+    const wB=pick([55,58,60,62,64,65,68,70,72,74,75]);
+    const wC=pick([55,58,60,62,64,65,68,70,72,74,75]);
+    const avg3=fmt((wA+wB+wC)/3);
+    const w1=fmt(parseFloat(avg3)+2),w2=fmt(parseFloat(avg3)-2),w3=fmt((wA+wB)/2);
+    return{text:`Weights of <strong>${A}=${wA}kg</strong>, <strong>${B}=${wB}kg</strong>, <strong>${C}=${wC}kg</strong>. Average weight?`,
+    opts:shuffle([avg3,w1,w2,w3]),correct:avg3,
+    solution:`Avg = (${wA}+${wB}+${wC})/3 = ${wA+wB+wC}/3 = <strong>${avg3} kg</strong>`,type:'MCQ'}
+  },
+
+  // ── 33. Find N given average and sum ──────────────────────────
+  ()=>{
+    const avg=pick([12,14,15,16,18,20,22,24,25,28,30]);
+    const n=pick([8,9,10,12,15,18,20,25,30]);
+    const sum=avg*n;
+    const w1=n+2,w2=n-2,w3=n+5;
+    return{text:`Sum of a group of numbers is <strong>${sum}</strong> and their average is <strong>${avg}</strong>. How many numbers are there?`,
+    opts:shuffle([n,w1,w2,w3]),correct:n,
+    solution:`Count = Sum ÷ Average = ${sum} ÷ ${avg} = <strong>${n}</strong>`,type:'MCQ'}
+  },
+
+  // ── 34. Data Sufficiency — find average ───────────────────────
+  ()=>{
+    const n=pick([5,6,7,8,9,10]);
+    const avg=pick([30,35,40,45,50,55,60]);
+    const sum=n*avg;
+    return{text:`<strong>Data Sufficiency:</strong> Find the average of ${n} numbers.<br><strong>I:</strong> Sum of the ${n} numbers is ${sum}.<br><strong>II:</strong> Each number is a multiple of ${pick([2,3,4,5])}.`,
+    opts:['Only Statement I','Only Statement II','Either I or II','Both needed'],correct:'Only Statement I',
+    solution:`From I: avg = ${sum}/${n} = ${avg}. Statement II alone is insufficient (doesn't give sum). <strong>Only I is sufficient.</strong>`,type:'Data Sufficiency'}
+  },
+
+  // ── 35. Data Sufficiency — replacement ───────────────────────
+  ()=>{
+    const n=pick([8,10,12,15,20]);
+    const oldVal=pick([30,35,40,45,50,55,60]);
+    const newVal=oldVal+pick([5,8,10,12,15,20]);
+    const diff=newVal-oldVal;
+    const avgChange=fmt(diff/n);
+    return{text:`<strong>Data Sufficiency:</strong> By how much does average change when one number is replaced?<br><strong>I:</strong> The group has ${n} numbers.<br><strong>II:</strong> New number is ${diff} more than replaced number.`,
+    opts:['Only Statement I','Only Statement II','Either I or II','Both needed'],correct:'Both needed',
+    solution:`Change = diff/n = ${diff}/${n} = ${avgChange}. Need both count AND difference. <strong>Both needed.</strong>`,type:'Data Sufficiency'}
+  },
+
+  // ── 36. Quantity Comparison — two averages ────────────────────
+  ()=>{
+    const n1=pick([5,6,8,10]);const n2=pick([5,6,8,10]);
+    const avg1=pick([40,42,44,45,48,50]);const avg2=pick([50,52,54,55,58,60]);
+    const combined=fmt((n1*avg1+n2*avg2)/(n1+n2));
+    const simpleAvg=fmt((avg1+avg2)/2);
+    const rel=parseFloat(combined)>parseFloat(simpleAvg)?'Q1 > Q2':parseFloat(combined)<parseFloat(simpleAvg)?'Q1 < Q2':'Q1 = Q2';
+    return{text:`<strong>Quantity Comparison:</strong><br>Q1: Weighted average of ${n1} numbers (avg ${avg1}) and ${n2} numbers (avg ${avg2})<br>Q2: Simple average of ${avg1} and ${avg2} = ${simpleAvg}`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],correct:rel,
+    solution:`Q1 = ${combined}. Q2 = ${simpleAvg}. Weighted avg biased toward group with more members. <strong>${rel}</strong>`,type:'Qty Comparison'}
+  },
+
+  // ── 37. Quantity Comparison — average vs individual ──────────
+  ()=>{
+    const[A]=twoNames();
+    const innings=pick([10,12,14,15,16,18,20]);
+    const avg=pick([35,38,40,42,45,48,50]);
+    const newScore=pick([80,85,90,95,100,110,120]);
+    const newAvg=fmt((innings*avg+newScore)/(innings+1));
+    return{text:`<strong>Quantity Comparison:</strong> ${A} has played ${innings} innings, average ${avg}. Scores ${newScore} in next innings.<br>Q1: New batting average &nbsp; Q2: ${avg}`,
+    opts:['Q1 > Q2','Q1 < Q2','Q1 = Q2','Cannot be determined'],
+    correct:parseFloat(newAvg)>avg?'Q1 > Q2':parseFloat(newAvg)<avg?'Q1 < Q2':'Q1 = Q2',
+    solution:`New avg = (${innings}×${avg}+${newScore})/${innings+1} = ${newAvg}. Since new score ${newScore} > old avg ${avg}, new avg rises. <strong>${parseFloat(newAvg)>avg?'Q1 > Q2':parseFloat(newAvg)<avg?'Q1 < Q2':'Q1 = Q2'}</strong>`,type:'Qty Comparison'}
+  },
+
+  // ── 38. Average with alligation — find group size ─────────────
+  ()=>{
+    const avg1=pick([40,42,44,45,48,50]);
+    const avg2=pick([60,62,64,65,68,70,72,74,75]);
+    const combined=rndN(avg1+5,avg2-5);
+    const rA=avg2-combined;const rB=combined-avg1;
+    const g=gcd(rA,rB);
+    const n1=pick([1,2,3,4,5])*(rA/g);
+    const n2=n1*(rB/rA);
+    const w1=fmt(n2+rB/g),w2=fmt(Math.max(1,n2-rB/g)),w3=n1;
+    return{text:`Group A (${n1} members, avg ${avg1}) and Group B (? members, avg ${avg2}) combine for overall avg <strong>${combined}</strong>. Size of Group B?`,
+    opts:shuffle([fmt(n2),w1,w2,fmt(w3)]),correct:fmt(n2),
+    solution:`Alligation: n1:n2 = (${avg2}−${combined}):(${combined}−${avg1}) = ${rA/g}:${rB/g}. n2 = (${rB/g}/${rA/g})×${n1} = <strong>${fmt(n2)}</strong>`,type:'MCQ'}
+  },
+
+  // ── 39. Consecutive numbers — find average given constraints ──
+  ()=>{
+    const start=rndN(3,50);const n=pick([5,7,9,11,13,15]);// odd count → integer avg
+    const avg=(start+(start+n-1))/2;// middle term
+    const w1=avg+1,w2=avg-1,w3=start+n;
+    return{text:`Average of <strong>${n}</strong> consecutive integers is <strong>${avg}</strong>. Find the largest integer.`,
+    opts:shuffle([start+n-1,(start+n-1)+1,(start+n-1)-1,(start+n-1)+2]),correct:start+n-1,
+    solution:`Middle term = avg = ${avg}. With ${n} terms, largest = avg + (n−1)/2 = ${avg}+${(n-1)/2} = <strong>${start+n-1}</strong>`,type:'MCQ'}
+  },
+
+  // ── 40. Average of numbers divisible by K in a range ──────────
+  ()=>{
+    const k=pick([2,3,4,5,6,7,8,9,10,11]);
+    const lo=rndN(1,20)*k;const steps=pick([4,5,6,7,8,9,10]);
+    const hi=lo+steps*k;
+    const avg=(lo+hi)/2;
+    const w1=avg+k,w2=avg-k,w3=fmt((lo+hi)/2+k/2);
+    return{text:`What is the average of all multiples of <strong>${k}</strong> from <strong>${lo}</strong> to <strong>${hi}</strong> inclusive?`,
+    opts:shuffle([avg,w1,w2,w3]),correct:avg,
+    solution:`Evenly spaced: average = (first+last)/2 = (${lo}+${hi})/2 = <strong>${avg}</strong>`,type:'MCQ'}
+  },
+
+]},
+  
 // ─────────────────── PERCENTAGE ───────────────────
 "Percentage":{icon:"📊",color:"#3b82f6",templates:[
   ()=>{
